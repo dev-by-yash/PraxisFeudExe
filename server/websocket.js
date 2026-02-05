@@ -216,11 +216,16 @@ const wss = new WebSocket.Server({ port: 8080 });
 const clients = new Map();
 
 function broadcast(gameCode, message, excludeId) {
+  console.log(`📡 Broadcasting ${message.type} to game ${gameCode}`);
+  let sentCount = 0;
   clients.forEach((client, clientId) => {
     if (client.gameCode === gameCode && clientId !== excludeId && client.readyState === WebSocket.OPEN) {
+      console.log(`   📤 Sending to client ${clientId} (role: ${client.role || 'unknown'})`);
       client.send(JSON.stringify(message));
+      sentCount++;
     }
   });
+  console.log(`📡 Broadcast complete: sent to ${sentCount} clients`);
 }
 
 async function createGame(hostId) {
@@ -534,6 +539,63 @@ wss.on('connection', (ws) => {
             ws.send(JSON.stringify({
               type: 'error',
               data: { message: 'Failed to perform team management action: ' + error.message }
+            }));
+          }
+          break;
+
+        case 'leaderboard_join':
+          try {
+            const game = await Game.findOne({ code: message.gameCode, isActive: true });
+            
+            if (!game) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                data: { message: 'Game not found' }
+              }));
+              return;
+            }
+
+            ws.gameCode = message.gameCode;
+            ws.role = 'leaderboard';
+
+            // Load all teams and their current scores
+            const allTeams = await Team.find({ isActive: true });
+            const allPlayers = await Player.find({ isActive: true });
+            
+            // Build teams with their players
+            const teamsWithPlayers = allTeams.map(team => ({
+              id: team.id,
+              name: team.name,
+              score: team.score,
+              strikes: team.strikes,
+              players: allPlayers.filter(p => p.teamId === team.id).map(p => ({
+                id: p.id,
+                name: p.name,
+                teamId: p.teamId,
+                isConnected: p.isConnected
+              }))
+            }));
+
+            // Sort teams by score (highest first)
+            const sortedTeams = teamsWithPlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            // Send game with sorted teams
+            const gameWithTeams = {
+              ...game.toObject(),
+              teams: sortedTeams
+            };
+
+            ws.send(JSON.stringify({
+              type: 'joined_game',
+              data: { game: gameWithTeams }
+            }));
+
+            console.log(`Leaderboard joined game: ${message.gameCode} with ${allTeams.length} teams`);
+          } catch (error) {
+            console.error('Leaderboard join error:', error);
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Failed to join leaderboard' }
             }));
           }
           break;
@@ -1033,18 +1095,32 @@ wss.on('connection', (ws) => {
                   pointsTeam.score += action.data.points;
                   console.log(`✅ Team ${pointsTeam.name}: ${oldScore} + ${action.data.points} = ${pointsTeam.score}`);
                   
+                  // Update the team in the database as well
+                  await Team.updateOne(
+                    { id: action.data.teamId },
+                    { $set: { score: pointsTeam.score } }
+                  );
+                  
                   // Save the game immediately
                   await game.save();
                   
-                  // Send points update confirmation
+                  // Send points update confirmation to ALL clients (including leaderboard)
                   const scores = {};
                   game.teams.forEach(team => {
                     scores[team.id] = team.score;
                   });
                   
+                  console.log('📤 Broadcasting points_updated to all clients');
                   broadcast(message.gameCode, {
                     type: 'points_updated',
                     data: { scores }
+                  });
+                  
+                  // Also broadcast game_update to sync everything
+                  console.log('📤 Broadcasting game_update to all clients');
+                  broadcast(message.gameCode, {
+                    type: 'game_update',
+                    data: { game: game.toObject() }
                   });
                   
                   // Return early to prevent the general game_update broadcast

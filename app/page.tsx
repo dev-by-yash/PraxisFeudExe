@@ -28,6 +28,14 @@ export default function Home() {
     }
   };
 
+  const handleJoinAsLeaderboard = () => {
+    if (gameCode.length === 4) {
+      router.push(`/leaderboard?code=${gameCode}`);
+    } else {
+      alert('Please enter a valid 4-character game code');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
       <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 w-full max-w-md shadow-2xl border border-white/20">
@@ -66,7 +74,7 @@ export default function Home() {
                 className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
               />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={handleJoinAsPlayer}
                   className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg text-sm"
@@ -79,6 +87,13 @@ export default function Home() {
                   className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg text-sm"
                 >
                   📺 Join as Display
+                </button>
+
+                <button
+                  onClick={handleJoinAsLeaderboard}
+                  className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg text-sm"
+                >
+                  🏆 Leaderboard
                 </button>
               </div>
             </div>

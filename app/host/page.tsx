@@ -537,6 +537,12 @@ export default function HostPage() {
                 >
                   Open Team Management
                 </button>
+                <button
+                  onClick={() => window.open(`/leaderboard?code=${game.code}`, '_blank')}
+                  className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded"
+                >
+                  🏆 Leaderboard
+                </button>
               </div>
             </div>
 

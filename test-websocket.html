@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    <button onclick="testCreateTeam()">Test Create Team</button>
+    
+    <script>
+        const ws = new WebSocket('ws://localhost:8080');
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        ws.onopen = function() {
+            statusDiv.innerHTML = 'Connected!';
+            console.log('WebSocket connected');
+            
+            // Join as team manager
+            ws.send(JSON.stringify({
+                type: 'team_manager_join',
+                gameCode: 'TEST',
+                data: { role: 'team_manager' }
+            }));
+        };
+        
+        ws.onmessage = function(event) {
+            const message = JSON.parse(event.data);
+            console.log('Received:', message);
+            messagesDiv.innerHTML += '<div>' + JSON.stringify(message) + '</div>';
+        };
+        
+        ws.onclose = function() {
+            statusDiv.innerHTML = 'Disconnected';
+            console.log('WebSocket disconnected');
+        };
+        
+        ws.onerror = function(error) {
+            statusDiv.innerHTML = 'Error: ' + error;
+            console.error('WebSocket error:', error);
+        };
+        
+        function testCreateTeam() {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'team_management_action',
+                    gameCode: 'TEST',
+                    data: {
+                        type: 'create_team',
+                        teamName: 'Test Team ' + Date.now()
+                    }
+                }));
+            } else {
+                alert('WebSocket not connected');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -20,11 +20,10 @@ function DisplayPageContent() {
     
     wsRef.current.onopen = () => {
       setIsConnected(true);
-      // Join as display
+      // Join as display (not as player with team)
       wsRef.current?.send(JSON.stringify({
-        type: 'player_join',
-        gameCode,
-        data: { playerName: 'Display' }
+        type: 'display_join',
+        gameCode
       }));
     };
 
@@ -33,26 +32,110 @@ function DisplayPageContent() {
       
       switch (message.type) {
         case 'joined_game':
+          console.log('📺 Display joined game');
           setGame(message.data.game);
           break;
         case 'game_update':
+          console.log('📺 Display received game_update');
           setGame(message.data.game);
           break;
+        case 'answer_revealed':
+          console.log('📺 Display received answer_revealed');
+          // Update only the answer state, preserve team scores
+          setGame(prevGame => {
+            if (!prevGame) return prevGame;
+            
+            const updatedRounds = [...prevGame.rounds];
+            const currentRound = updatedRounds[prevGame.currentRoundIndex];
+            if (currentRound) {
+              const currentQuestion = currentRound.questions[currentRound.currentQuestionIndex];
+              if (currentQuestion && currentQuestion.answers[message.data.answerIndex]) {
+                currentQuestion.answers[message.data.answerIndex].revealed = true;
+              }
+            }
+            
+            return {
+              ...prevGame,
+              rounds: updatedRounds
+            };
+          });
+          break;
+        case 'question_changed':
+          console.log('📺 Display received question_changed');
+          console.log('   New round index:', message.data.currentRoundIndex);
+          console.log('   New question index:', message.data.currentQuestionIndex);
+          // Update game state but preserve team scores
+          setGame(prevGame => {
+            if (!prevGame) return prevGame;
+            
+            // Update the rounds structure properly
+            const updatedRounds = [...prevGame.rounds];
+            if (updatedRounds[message.data.currentRoundIndex]) {
+              updatedRounds[message.data.currentRoundIndex].currentQuestionIndex = message.data.currentQuestionIndex;
+            }
+            
+            return {
+              ...prevGame,
+              currentRoundIndex: message.data.currentRoundIndex,
+              rounds: updatedRounds,
+              gameState: message.data.gameState,
+              buzzerPressed: null,
+              // Reset strikes but preserve scores
+              teams: prevGame.teams.map(team => ({
+                ...team,
+                strikes: 0,
+                // Keep the score!
+                score: team.score
+              }))
+            };
+          });
+          break;
+        case 'points_updated':
+          console.log('📺 Display received points_updated');
+          // Update team scores
+          setGame(prevGame => {
+            if (!prevGame) return prevGame;
+            
+            return {
+              ...prevGame,
+              teams: prevGame.teams.map(team => ({
+                ...team,
+                score: message.data.scores[team.id] || team.score
+              }))
+            };
+          });
+          break;
         case 'buzzer_pressed':
+          console.log('📺 Display received buzzer_pressed:', message.data);
           // Update game state when buzzer is pressed
           setGame(prevGame => prevGame ? {
             ...prevGame,
             buzzerPressed: {
-              playerId: message.data.playerId,
-              playerName: message.data.playerName,
               teamId: message.data.teamId,
+              teamName: message.data.teamName,
               timestamp: message.data.timestamp
             },
             gameState: 'answering'
           } : null);
           break;
+        case 'buzzer_enabled':
+          console.log('📺 Display received buzzer_enabled');
+          setGame(prevGame => prevGame ? {
+            ...prevGame,
+            buzzerPressed: null,
+            gameState: 'buzzer'
+          } : null);
+          break;
+        case 'buzzer_reset':
+          console.log('📺 Display received buzzer_reset');
+          setGame(prevGame => prevGame ? {
+            ...prevGame,
+            buzzerPressed: null,
+            gameState: 'buzzer'
+          } : null);
+          break;
         case 'error':
-          console.error(message.data.message);
+          console.error('📺 Display error:', message.data.message);
           break;
       }
     };
@@ -143,20 +226,21 @@ function DisplayPageContent() {
           <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 mb-8">
             <h3 className="text-4xl font-bold text-center mb-8">{currentQuestion.text}</h3>
             
-            {/* Buzzer Status - Enhanced */}
+            {/* Simple Buzzer Message - Persistent */}
             {game.buzzerPressed && (
-              <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-3xl p-8 mb-8 text-center animate-pulse shadow-2xl border-4 border-yellow-400">
-                <div className="text-6xl mb-4">🔥</div>
-                <h2 className="text-5xl font-bold text-white mb-4">BUZZER PRESSED!</h2>
-                <p className="text-3xl font-bold text-yellow-300 mb-2">
-                  {game.buzzerPressed.playerName}
+              <div className="bg-green-600 rounded-3xl p-6 mb-8 text-center">
+                <p className="text-4xl font-bold text-white">
+                  🔥 Team "{game.buzzerPressed.teamName || 'Unknown'}" pressed the buzzer first! 🔥
                 </p>
-                <p className="text-2xl text-red-200">
-                  from {game.teams.find(t => t.id === game.buzzerPressed?.teamId)?.name || 'Unknown Team'}
-                </p>
-                <div className="text-xl text-yellow-200 mt-4 animate-bounce">
-                  ⚡ FIRST TO BUZZ! ⚡
-                </div>
+              </div>
+            )}
+
+            {/* Debug Info */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-gray-800 p-2 mb-4 text-xs text-white">
+                <div>Game State: {game.gameState}</div>
+                <div>Buzzer Pressed: {game.buzzerPressed ? `Yes - ${game.buzzerPressed.teamName}` : 'No'}</div>
+                <div>Teams: {game.teams?.length || 0}</div>
               </div>
             )}
 

@@ -14,9 +14,9 @@ export default function Home() {
 
   const handleJoinAsPlayer = () => {
     if (gameCode.length === 4 && playerName.trim()) {
-      router.push(`/player?code=${gameCode}&name=${encodeURIComponent(playerName)}`);
+      router.push(`/player?code=${gameCode}&team=${encodeURIComponent(playerName)}`);
     } else {
-      alert('Please enter a valid 4-character game code and your name');
+      alert('Please enter a valid 4-character game code and your team name');
     }
   };
 
@@ -60,7 +60,7 @@ export default function Home() {
 
               <input
                 type="text"
-                placeholder="Enter your name (for buzzer)"
+                placeholder="Enter your team name"
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"

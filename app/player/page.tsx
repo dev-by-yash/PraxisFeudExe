@@ -7,30 +7,30 @@ import { Game, WSMessage } from '../../types/game';
 function PlayerPageContent() {
   const searchParams = useSearchParams();
   const gameCode = searchParams?.get('code');
-  const playerName = searchParams?.get('name');
+  const teamName = searchParams?.get('team');
   
   const [game, setGame] = useState<Game | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [canBuzz, setCanBuzz] = useState(false);
   const [buzzPressed, setBuzzPressed] = useState(false);
-  const [buzzerWinner, setBuzzerWinner] = useState<string | null>(null);
-  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [buzzerWinnerTeam, setBuzzerWinnerTeam] = useState<string | null>(null);
+  const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!gameCode || !playerName) return;
+    if (!gameCode || !teamName) return;
 
     // Connect to WebSocket
     wsRef.current = new WebSocket('ws://localhost:8080');
     
     wsRef.current.onopen = () => {
       setIsConnected(true);
-      // Join game
+      // Join game with team name
       wsRef.current?.send(JSON.stringify({
         type: 'player_join',
         gameCode,
-        data: { playerName }
+        data: { teamName }
       }));
     };
 
@@ -41,40 +41,63 @@ function PlayerPageContent() {
         case 'joined_game':
           console.log('Player joined game:', message.data.game);
           setGame(message.data.game);
-          setMyPlayerId(message.data.playerId);
+          setMyTeamId(message.data.teamId);
           setHasJoined(true);
           break;
         case 'game_update':
           console.log('Game update received:', message.data.game.gameState);
           setGame(message.data.game);
           const newGameState = message.data.game.gameState;
-          setCanBuzz(newGameState === 'buzzer');
+          console.log('🎮 Game state changed to:', newGameState);
+          
           if (newGameState === 'buzzer') {
+            console.log('🔔 Buzzer enabled - resetting states');
+            setCanBuzz(true);
             setBuzzPressed(false);
-            setBuzzerWinner(null);
+            setBuzzerWinnerTeam(null);
+          } else {
+            setCanBuzz(false);
           }
           break;
         case 'buzzer_pressed':
-          console.log('Buzzer pressed by someone:', message.data);
-          console.log('My Player ID:', myPlayerId);
-          console.log('Buzzer pressed by ID:', message.data.playerId);
-          setBuzzerWinner(message.data.playerName);
-          // Check if this player pressed the buzzer
-          if (message.data.playerId === myPlayerId) {
+          console.log('Buzzer pressed by team:', message.data);
+          console.log('My Team ID:', myTeamId);
+          console.log('Buzzer pressed by team ID:', message.data.teamId);
+          
+          // Find the team name that pressed the buzzer
+          const winnerTeam = game?.teams.find(t => t.id === message.data.teamId);
+          setBuzzerWinnerTeam(winnerTeam?.name || 'Unknown Team');
+          
+          // Check if this team pressed the buzzer
+          if (message.data.teamId === myTeamId) {
             setBuzzPressed(true);
-            console.log('I pressed the buzzer!');
+            console.log('My team pressed the buzzer!');
           } else {
-            // Someone else pressed the buzzer first
+            // Another team pressed the buzzer first
             setBuzzPressed(false);
-            console.log('Someone else pressed the buzzer first');
+            console.log('Another team pressed the buzzer first');
           }
-          setCanBuzz(false);
+          // Don't disable buzzer - let reset handle it
           break;
         case 'buzzer_too_late':
           console.log('Buzzer pressed too late:', message.data);
-          setBuzzerWinner(message.data.winner);
+          setBuzzerWinnerTeam(message.data.winnerTeam);
           setBuzzPressed(false);
           setCanBuzz(false);
+          break;
+        case 'buzzer_enabled':
+          console.log('🔔 Buzzer enabled received');
+          setBuzzPressed(false);
+          setBuzzerWinnerTeam(null);
+          setCanBuzz(true);
+          console.log('✅ Buzzer ready for next press');
+          break;
+        case 'buzzer_reset':
+          console.log('🔄 Buzzer reset received');
+          setBuzzPressed(false);
+          setBuzzerWinnerTeam(null);
+          setCanBuzz(true);
+          console.log('✅ Buzzer ready for next press');
           break;
         case 'error':
           alert(message.data.message);
@@ -89,23 +112,35 @@ function PlayerPageContent() {
     return () => {
       wsRef.current?.close();
     };
-  }, [gameCode, playerName]);
+  }, [gameCode, teamName]);
 
   const pressBuzzer = () => {
-    if (canBuzz && wsRef.current && gameCode) {
+    console.log('🔔 Player pressing buzzer');
+    console.log('   canBuzz:', canBuzz);
+    console.log('   gameCode:', gameCode);
+    console.log('   myTeamId:', myTeamId);
+    console.log('   wsRef:', !!wsRef.current);
+    
+    if (canBuzz && wsRef.current && gameCode && myTeamId) {
+      console.log('✅ Sending buzzer press to server');
       wsRef.current.send(JSON.stringify({
         type: 'buzzer_press',
-        gameCode
+        gameCode,
+        data: { teamId: myTeamId }
       }));
+      // Immediately show buzzed state
       setBuzzPressed(true);
       setCanBuzz(false);
+      console.log('✅ Buzzer press sent - showing BUZZED');
+    } else {
+      console.log('❌ Cannot press buzzer - missing requirements');
     }
   };
 
-  if (!gameCode || !playerName) {
+  if (!gameCode || !teamName) {
     return (
       <div className="min-h-screen bg-red-900 flex items-center justify-center">
-        <div className="text-white text-xl">Invalid game code or player name</div>
+        <div className="text-white text-xl">Invalid game code or team name</div>
       </div>
     );
   }
@@ -134,7 +169,7 @@ function PlayerPageContent() {
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">Feud.Exe</h1>
-        <p className="text-blue-200 text-lg">Player: {playerName}</p>
+        <p className="text-blue-200 text-lg">Team: {teamName}</p>
         <p className="text-blue-300">Game: {gameCode}</p>
       </div>
 
@@ -160,7 +195,7 @@ function PlayerPageContent() {
       <div className="flex flex-col items-center space-y-6">
         <button
           onClick={pressBuzzer}
-          disabled={!canBuzz || buzzPressed}
+          disabled={!canBuzz && !buzzPressed}
           className={`
             w-64 h-64 rounded-full text-4xl font-bold transition-all duration-200 transform
             ${canBuzz && !buzzPressed
@@ -184,26 +219,26 @@ function PlayerPageContent() {
           {game?.gameState === 'playing' && (
             <p className="text-yellow-400 text-lg">Game started! Waiting for buzzer to be enabled...</p>
           )}
-          {game?.gameState === 'buzzer' && !buzzPressed && !buzzerWinner && (
+          {game?.gameState === 'buzzer' && !buzzPressed && !buzzerWinnerTeam && (
             <p className="text-green-400 text-lg font-semibold animate-bounce">
               Ready to buzz! Tap the button when you know the answer!
             </p>
           )}
-          {game?.gameState === 'answering' && buzzerWinner && (
+          {game?.gameState === 'answering' && buzzerWinnerTeam && (
             <div className="space-y-2">
               {buzzPressed ? (
                 <div>
                   <p className="text-green-400 text-xl font-bold animate-pulse">
-                    🎉 YOU BUZZED FIRST! 🎉
+                    🎉 YOUR TEAM BUZZED FIRST! 🎉
                   </p>
                   <p className="text-green-300 text-lg">
-                    Wait for the host to call on you!
+                    Wait for the host to call on your team!
                   </p>
                 </div>
               ) : (
                 <div>
                   <p className="text-red-400 text-xl font-bold">
-                    ❌ {buzzerWinner} buzzed first!
+                    ❌ Team "{buzzerWinnerTeam}" buzzed first!
                   </p>
                   <p className="text-yellow-300 text-lg">
                     Better luck next time!

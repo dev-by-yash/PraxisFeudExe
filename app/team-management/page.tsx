@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Game, WSMessage, Team, Player } from '../../types/game';
+import { getWebSocketUrl } from '../../lib/websocket';
 
 function TeamManagementContent() {
   const searchParams = useSearchParams();
@@ -19,7 +20,7 @@ function TeamManagementContent() {
     if (!gameCode) return;
 
     // Connect to WebSocket
-    wsRef.current = new WebSocket('ws://localhost:8080');
+    wsRef.current = new WebSocket(getWebSocketUrl());
     
     wsRef.current.onopen = () => {
       console.log('WebSocket connected for team management');

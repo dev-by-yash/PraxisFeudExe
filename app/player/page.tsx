@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Game, WSMessage } from '../../types/game';
+import { getWebSocketUrl } from '../../lib/websocket';
 
 function PlayerPageContent() {
   const searchParams = useSearchParams();
@@ -38,16 +39,21 @@ function PlayerPageContent() {
     console.log('🔌 Creating WebSocket connection...');
 
     // Connect to WebSocket
-    wsRef.current = new WebSocket('ws://localhost:8080');
+    const wsUrl = getWebSocketUrl();
+    console.log('🔌 Connecting to:', wsUrl);
+    wsRef.current = new WebSocket(wsUrl);
     
     wsRef.current.onopen = () => {
+      console.log('✅ WebSocket connection opened');
       setIsConnected(true);
       // Join game with team name
-      wsRef.current?.send(JSON.stringify({
+      const joinMessage = {
         type: 'player_join',
         gameCode,
         data: { teamName }
-      }));
+      };
+      console.log('📤 Sending player_join message:', joinMessage);
+      wsRef.current?.send(JSON.stringify(joinMessage));
     };
 
     wsRef.current.onmessage = (event) => {
@@ -141,6 +147,11 @@ function PlayerPageContent() {
       hasConnectedRef.current = false;
     };
 
+    wsRef.current.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
+      console.error('   WebSocket URL was:', wsUrl);
+    };
+
     return () => {
       console.log('🧹 Cleaning up WebSocket connection');
       wsRef.current?.close();
@@ -183,8 +194,13 @@ function PlayerPageContent() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Connecting to game...</div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="text-white text-xl mb-4">Connecting to game...</div>
+          <div className="text-gray-400 text-sm">
+            Check console for connection details
+          </div>
+        </div>
       </div>
     );
   }

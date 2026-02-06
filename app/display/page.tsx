@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Game, WSMessage } from '../../types/game';
+import { getWebSocketUrl } from '../../lib/websocket';
 
 function DisplayPageContent() {
   const searchParams = useSearchParams();
@@ -16,7 +17,7 @@ function DisplayPageContent() {
     if (!gameCode) return;
 
     // Connect to WebSocket
-    wsRef.current = new WebSocket('ws://localhost:8080');
+    wsRef.current = new WebSocket(getWebSocketUrl());
     
     wsRef.current.onopen = () => {
       setIsConnected(true);

@@ -3,6 +3,7 @@
 // Version 2.0 - Fixed loadAllTeams error
 import { useState, useEffect, useRef } from 'react';
 import { Game, WSMessage, Team, Player } from '../../types/game';
+import { getWebSocketUrl } from '../../lib/websocket';
 
 export default function HostPage() {
   console.log('🚀 Host Page v2.0 loaded - loadAllTeams error should be fixed');
@@ -72,7 +73,9 @@ export default function HostPage() {
 
   useEffect(() => {
     // Connect to WebSocket
-    wsRef.current = new WebSocket('ws://localhost:8080');
+    const wsUrl = getWebSocketUrl();
+    console.log('🔌 Host connecting to:', wsUrl);
+    wsRef.current = new WebSocket(wsUrl);
     
     wsRef.current.onopen = () => {
       setIsConnected(true);
@@ -84,7 +87,9 @@ export default function HostPage() {
     };
 
     wsRef.current.onmessage = (event) => {
+      console.log('📨 HOST received message:', event.data);
       const message: WSMessage = JSON.parse(event.data);
+      console.log('📨 Parsed message type:', message.type);
       
       switch (message.type) {
         case 'game_created':

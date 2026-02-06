@@ -213,8 +213,15 @@ function generateGameCode() {
 }
 
 // WebSocket Server
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocket.Server({ 
+  port: 8080,
+  host: '0.0.0.0' // Listen on all network interfaces
+});
 const clients = new Map();
+
+console.log('🚀 WebSocket server started on port 8080');
+console.log('📡 Listening on all network interfaces (0.0.0.0)');
+console.log('💡 Access from other devices using your computer\'s IP address');
 
 function broadcast(gameCode, message, excludeId) {
   console.log(`📡 Broadcasting ${message.type} to game ${gameCode}`);
@@ -281,16 +288,20 @@ wss.on('connection', (ws) => {
   ws.playerId = ws.id; // Store player ID for easy access
   clients.set(ws.id, ws);
   
-  console.log(`Client connected: ${ws.id}`);
+  console.log(`✅ Client connected: ${ws.id}`);
+  console.log(`   Total clients: ${clients.size}`);
 
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data.toString());
-      console.log('Received:', message);
+      console.log(`📨 Received from ${ws.id}:`, message);
+      console.log(`   Message type: ${message.type}`);
+      console.log(`   Game code: ${message.gameCode || 'N/A'}`);
       
       switch (message.type) {
         case 'host_create':
           try {
+            console.log('🎮 Creating game for host:', ws.id);
             const game = await createGame(ws.id);
             ws.gameCode = game.code;
             ws.role = 'host';
@@ -319,14 +330,20 @@ wss.on('connection', (ws) => {
               teams: teamsWithPlayers
             };
             
-            ws.send(JSON.stringify({
+            const response = {
               type: 'game_created',
               data: { game: gameWithTeams, hostId: ws.id }
-            }));
+            };
             
-            console.log(`Game created: ${game.code} with ${existingTeams.length} teams from database`);
+            console.log('📤 Sending game_created response to:', ws.id);
+            console.log('   Game code:', game.code);
+            console.log('   WebSocket ready state:', ws.readyState);
+            
+            ws.send(JSON.stringify(response));
+            
+            console.log('✅ Game created: ${game.code} with ${existingTeams.length} teams from database');
           } catch (error) {
-            console.error('Create game error:', error);
+            console.error('❌ Create game error:', error);
             ws.send(JSON.stringify({
               type: 'error',
               data: { message: 'Failed to create game' }

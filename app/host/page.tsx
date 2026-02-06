@@ -100,40 +100,34 @@ export default function HostPage() {
         case 'game_update':
           console.log('📨 GAME_UPDATE received');
           console.log('   Server game teams:', message.data.game.teams?.length || 0);
-          console.log('   Server game.buzzerPressed:', message.data.game.buzzerPressed);
-          console.log('   Current local teams:', game?.teams?.length || 0);
-          console.log('   Teams manually selected:', teamsManuallySelected);
+          console.log('   Server team scores:', message.data.game.teams?.map(t => `${t.name}: ${t.score}`));
           
-          if (teamsManuallySelected && game?.teams) {
-            console.log('🛡️ PROTECTING manually selected teams and their scores from server overwrite');
+          // Use server data as source of truth
+          setGame(message.data.game);
+          break;
+        case 'points_updated':
+          console.log('📨 POINTS_UPDATED received');
+          console.log('   New scores from server:', message.data.scores);
+          // Update team scores from the points_updated message
+          setGame(prevGame => {
+            if (!prevGame || !prevGame.teams) return prevGame;
             
-            // Preserve manually selected teams AND their scores, only update other game properties
-            const preservedTeams = game.teams.map(localTeam => {
-              // Find corresponding server team for non-score updates
-              const serverTeam = message.data.game.teams?.find(st => st.id === localTeam.id);
-              return {
-                ...localTeam, // Keep local team data (including score)
-                // Only update non-score properties from server if they exist
-                strikes: serverTeam?.strikes ?? localTeam.strikes,
-                // Keep local score to prevent overwrites
-                score: localTeam.score
-              };
+            const updatedTeams = prevGame.teams.map(team => {
+              const serverScore = message.data.scores[team.id];
+              if (serverScore !== undefined) {
+                console.log(`   Updating ${team.name}: ${team.score} -> ${serverScore}`);
+                return { ...team, score: serverScore };
+              }
+              return team;
             });
             
-            setGame(prevGame => ({
-              ...message.data.game,
-              teams: preservedTeams
-            }));
-          } else {
-            // Normal update when teams weren't manually selected
-            if (message.data.game.teams && message.data.game.teams.length > 0) {
-              console.log('✅ Updating with server teams');
-              setGame(message.data.game);
-            } else {
-              console.log('✅ Updating game state (no teams from server)');
-              setGame(message.data.game);
-            }
-          }
+            console.log('   Final scores:', updatedTeams.map(t => `${t.name}: ${t.score}`));
+            
+            return {
+              ...prevGame,
+              teams: updatedTeams
+            };
+          });
           break;
         case 'teams_selected':
           console.log('📨 TEAMS_SELECTED confirmation from server');
@@ -402,32 +396,12 @@ export default function HostPage() {
   };
 
   const addPointsToTeam = (teamId: string, points: number) => {
-    console.log(`💰 Adding ${points} points to team ${teamId}`);
+    console.log(`💰 Client: Adding ${points} points to team ${teamId}`);
     
-    // Update local state immediately and permanently
-    setGame(prevGame => {
-      if (!prevGame || !prevGame.teams) {
-        console.error('❌ No game or teams available');
-        return prevGame;
-      }
-      
-      const updatedGame = {
-        ...prevGame,
-        teams: prevGame.teams.map(team => {
-          if (team.id === teamId) {
-            const newScore = (team.score || 0) + points;
-            console.log(`✅ ${team.name}: ${team.score || 0} + ${points} = ${newScore}`);
-            return { ...team, score: newScore };
-          }
-          return team;
-        })
-      };
-      
-      console.log('✅ All team scores:', updatedGame.teams.map(t => `${t.name}: ${t.score}`));
-      return updatedGame;
-    });
+    // Don't update local state - wait for server response
+    // This prevents desync between client and server
     
-    // Send to server (but don't wait for response)
+    // Send to server and let it handle the update
     if (game && wsRef.current) {
       sendHostAction({
         type: 'add_points',

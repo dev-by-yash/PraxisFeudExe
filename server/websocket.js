@@ -559,16 +559,19 @@ wss.on('connection', (ws) => {
             ws.gameCode = message.gameCode;
             ws.role = 'leaderboard';
 
-            // Load all teams and their current scores
+            // Load all teams and their current scores from database
             const allTeams = await Team.find({ isActive: true });
             const allPlayers = await Player.find({ isActive: true });
             
-            // Build teams with their players
+            console.log(`📊 Leaderboard joining game ${message.gameCode}`);
+            console.log(`📊 Found ${allTeams.length} teams in database`);
+            
+            // Build teams with their players and database scores
             const teamsWithPlayers = allTeams.map(team => ({
               id: team.id,
               name: team.name,
-              score: team.score,
-              strikes: team.strikes,
+              score: team.score || 0, // Use database score
+              strikes: team.strikes || 0,
               players: allPlayers.filter(p => p.teamId === team.id).map(p => ({
                 id: p.id,
                 name: p.name,
@@ -580,7 +583,9 @@ wss.on('connection', (ws) => {
             // Sort teams by score (highest first)
             const sortedTeams = teamsWithPlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
 
-            // Send game with sorted teams
+            console.log(`📊 Leaderboard teams:`, sortedTeams.map(t => `${t.name}: ${t.score}`));
+
+            // Send game with all teams sorted by score
             const gameWithTeams = {
               ...game.toObject(),
               teams: sortedTeams
@@ -591,7 +596,7 @@ wss.on('connection', (ws) => {
               data: { game: gameWithTeams }
             }));
 
-            console.log(`Leaderboard joined game: ${message.gameCode} with ${allTeams.length} teams`);
+            console.log(`✅ Leaderboard joined game: ${message.gameCode} with ${allTeams.length} teams`);
           } catch (error) {
             console.error('Leaderboard join error:', error);
             ws.send(JSON.stringify({
@@ -986,12 +991,12 @@ wss.on('connection', (ws) => {
                   
                   console.log(`Found ${players.length} players for selected teams`);
                   
-                  // Build teams with their players
+                  // Build teams with their players and RESET scores to 0 for new game
                   const teamsWithPlayers = selectedTeams.map(team => ({
                     id: team.id,
                     name: team.name,
-                    score: team.score,
-                    strikes: team.strikes,
+                    score: 0, // Start fresh with 0 points for this game
+                    strikes: 0,
                     players: players.filter(p => p.teamId === team.id).map(p => ({
                       id: p.id,
                       name: p.name,
@@ -1002,10 +1007,10 @@ wss.on('connection', (ws) => {
                   
                   // Update game with selected teams
                   game.teams = teamsWithPlayers;
-                  game.currentTeamTurn = teamsWithPlayers[0].id; // Set first team as starting team
+                  game.currentTeamTurn = teamsWithPlayers[0].id;
                   await game.save();
                   
-                  console.log(`✅ Selected teams for game: ${teamsWithPlayers.map(t => t.name).join(' vs ')}`);
+                  console.log(`✅ Selected teams for game with scores reset to 0: ${teamsWithPlayers.map(t => t.name).join(' vs ')}`);
                   
                   // Send confirmation back to client
                   ws.send(JSON.stringify({
@@ -1106,48 +1111,80 @@ wss.on('connection', (ws) => {
 
               case 'add_points':
                 console.log(`💰 Adding ${action.data.points} points to team ${action.data.teamId}`);
+                console.log(`📊 Current game teams BEFORE update:`, game.teams.map(t => `${t.name}: ${t.score || 0}`));
+                
+                // Find team in game object
                 const pointsTeam = game.teams.find(t => t.id === action.data.teamId);
-                if (pointsTeam) {
-                  const oldScore = pointsTeam.score;
-                  pointsTeam.score += action.data.points;
-                  console.log(`✅ Team ${pointsTeam.name}: ${oldScore} + ${action.data.points} = ${pointsTeam.score}`);
-                  
-                  // Update the team in the database as well
-                  await Team.updateOne(
-                    { id: action.data.teamId },
-                    { $set: { score: pointsTeam.score } }
-                  );
-                  
-                  // Save the game immediately
-                  await game.save();
-                  
-                  // Send points update confirmation to ALL clients (including leaderboard)
-                  const scores = {};
-                  game.teams.forEach(team => {
-                    scores[team.id] = team.score;
-                  });
-                  
-                  console.log('📤 Broadcasting points_updated to all clients');
-                  broadcast(message.gameCode, {
-                    type: 'points_updated',
-                    data: { scores }
-                  });
-                  
-                  // Also broadcast game_update to sync everything
-                  console.log('📤 Broadcasting game_update to all clients');
-                  broadcast(message.gameCode, {
-                    type: 'game_update',
-                    data: { game: game.toObject() }
-                  });
-                  
-                  // Return early to prevent the general game_update broadcast
-                  console.log(`Host action completed: ${action.type}`);
-                  return;
-                } else {
-                  console.error(`❌ Team not found: ${action.data.teamId}`);
-                  console.log('Available teams:', game.teams.map(t => `${t.name} (${t.id})`));
+                if (!pointsTeam) {
+                  console.error(`❌ Team not found in game: ${action.data.teamId}`);
+                  console.error(`   Available teams:`, game.teams.map(t => `${t.id}: ${t.name}`));
+                  break;
                 }
-                break;
+                
+                // Update team score in game object
+                const oldScore = pointsTeam.score || 0;
+                const newScore = oldScore + action.data.points;
+                pointsTeam.score = newScore;
+                
+                console.log(`✅ Team ${pointsTeam.name}: ${oldScore} + ${action.data.points} = ${newScore}`);
+                console.log(`📊 Current game teams AFTER update:`, game.teams.map(t => `${t.name}: ${t.score || 0}`));
+                
+                // Also update the team in the database for leaderboard
+                const dbTeam = await Team.findOne({ id: action.data.teamId, isActive: true });
+                if (dbTeam) {
+                  const dbOldScore = dbTeam.score || 0;
+                  dbTeam.score = dbOldScore + action.data.points;
+                  await dbTeam.save();
+                  console.log(`✅ Database team ${dbTeam.name}: ${dbOldScore} + ${action.data.points} = ${dbTeam.score}`);
+                }
+                
+                // Mark the game as modified to ensure Mongoose saves it
+                game.markModified('teams');
+                
+                // Save the game with updated scores
+                await game.save();
+                
+                console.log(`📊 Game saved. Verifying teams:`, game.teams.map(t => `${t.name}: ${t.score || 0}`));
+                
+                // Build scores object from current game state
+                const scores = {};
+                game.teams.forEach(team => {
+                  scores[team.id] = team.score || 0;
+                });
+                
+                console.log('📊 Scores to broadcast:', scores);
+                console.log('📤 Broadcasting points_updated to all clients (including leaderboard)');
+                
+                // Send points_updated to update all clients
+                broadcast(message.gameCode, {
+                  type: 'points_updated',
+                  data: { scores }
+                });
+                
+                // Also send teams_loaded to leaderboard to refresh all teams
+                const allTeams = await Team.find({ isActive: true });
+                const allPlayers = await Player.find({ isActive: true });
+                
+                const teamsWithPlayers = allTeams.map(team => ({
+                  id: team.id,
+                  name: team.name,
+                  score: team.score || 0,
+                  strikes: team.strikes || 0,
+                  players: allPlayers.filter(p => p.teamId === team.id).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    teamId: p.teamId,
+                    isConnected: p.isConnected
+                  }))
+                }));
+                
+                broadcast(message.gameCode, {
+                  type: 'teams_loaded',
+                  data: { teams: teamsWithPlayers }
+                });
+                
+                console.log(`✅ Host action completed: ${action.type}`);
+                return;
 
               case 'reveal_answer':
                 console.log('🎯 Revealing answer:', action.data.answerIndex);

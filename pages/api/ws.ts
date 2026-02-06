@@ -174,7 +174,7 @@ wss.on('connection', (ws: ExtendedWebSocket) => {
 
             // Check if buzzer already pressed
             if (game.buzzerPressed) {
-              return;
+              return game.buzzerPressed.teamId;
             }
 
             // Find player info

@@ -82,6 +82,7 @@ const GameSchema = new mongoose.Schema({
     playerId: String,
     playerName: String,
     teamId: String,
+    teamName: String,
     timestamp: Number
   },
   createdAt: { type: Date, default: Date.now },
@@ -680,6 +681,7 @@ wss.on('connection', (ws) => {
             
             // Find the team by name only (ignore game code)
             console.log(`🔍 Looking for team: "${message.data.teamName}"`);
+            console.log(`🔍 In game: "${message.gameCode}"`);
             
             const team = await Team.findOne({ 
               name: { $regex: new RegExp(`^${message.data.teamName}$`, 'i') }, // Case-insensitive search
@@ -694,7 +696,7 @@ wss.on('connection', (ws) => {
               
               console.log(`🔍 Available teams in database:`);
               allTeams.forEach((t, index) => {
-                console.log(`   ${index + 1}. "${t.name}" (ID: ${t.id})`);
+                console.log(`   ${index + 1}. "${t.name}" (ID: ${t.id}, Game: ${t.gameCode})`);
               });
               
               let errorMessage = `Team "${message.data.teamName}" not found.`;
@@ -715,13 +717,19 @@ wss.on('connection', (ws) => {
             ws.teamId = team.id;
             ws.teamName = team.name;
 
+            console.log(`✅ Sending joined_game with teamId: ${team.id}, teamName: ${team.name}`);
+            
+            const responseData = {
+              game: game.toObject(),
+              teamId: team.id,
+              teamName: team.name
+            };
+            
+            console.log(`📤 Response data:`, JSON.stringify(responseData, null, 2));
+
             ws.send(JSON.stringify({
               type: 'joined_game',
-              data: { 
-                game: game.toObject(),
-                teamId: team.id,
-                teamName: team.name
-              }
+              data: responseData
             }));
 
             // Notify host of new player joining team
@@ -733,12 +741,12 @@ wss.on('connection', (ws) => {
               }
             }, ws.id);
 
-            console.log(`Player joined team: ${team.name} in game ${message.gameCode}`);
+            console.log(`✅ Player joined team: ${team.name} in game ${message.gameCode}`);
           } catch (error) {
-            console.error('Join game error:', error);
+            console.error('❌ Join game error:', error);
             ws.send(JSON.stringify({
               type: 'error',
-              data: { message: 'Failed to join game' }
+              data: { message: 'Failed to join game: ' + error.message }
             }));
           }
           break;
@@ -786,7 +794,10 @@ wss.on('connection', (ws) => {
               return;
             }
 
-            console.log('✅ Team found for buzzer:', team.name);
+            console.log('✅ Team found for buzzer:');
+            console.log('   Team ID:', team.id);
+            console.log('   Team Name:', team.name);
+            console.log('   Full team object:', JSON.stringify(team, null, 2));
 
             // Update game state
             game.buzzerPressed = {
@@ -805,7 +816,8 @@ wss.on('connection', (ws) => {
               timestamp: Date.now()
             };
 
-            console.log('📤 Broadcasting buzzer_pressed to all clients:', buzzerData);
+            console.log('📤 Broadcasting buzzer_pressed to all clients:');
+            console.log('   buzzerData:', JSON.stringify(buzzerData, null, 2));
             
             // Use broadcast function to send to all clients
             broadcast(message.gameCode, {
@@ -815,9 +827,14 @@ wss.on('connection', (ws) => {
 
             // Also send game update to sync the full game state
             console.log('📤 Broadcasting game_update');
+            console.log('   game.buzzerPressed:', JSON.stringify(game.buzzerPressed, null, 2));
+            
+            const gameObject = game.toObject();
+            console.log('   gameObject.buzzerPressed:', JSON.stringify(gameObject.buzzerPressed, null, 2));
+            
             broadcast(message.gameCode, {
               type: 'game_update',
-              data: { game: game.toObject() }
+              data: { game: gameObject }
             });
 
             console.log(`🎉 Buzzer pressed by team: ${team.name} - notifications sent`);

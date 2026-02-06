@@ -100,6 +100,7 @@ export default function HostPage() {
         case 'game_update':
           console.log('📨 GAME_UPDATE received');
           console.log('   Server game teams:', message.data.game.teams?.length || 0);
+          console.log('   Server game.buzzerPressed:', message.data.game.buzzerPressed);
           console.log('   Current local teams:', game?.teams?.length || 0);
           console.log('   Teams manually selected:', teamsManuallySelected);
           
@@ -217,6 +218,10 @@ export default function HostPage() {
           break;
         case 'buzzer_pressed':
           console.log('📨 HOST received buzzer_pressed:', message.data);
+          console.log('   teamId:', message.data.teamId);
+          console.log('   teamName:', message.data.teamName);
+          console.log('   timestamp:', message.data.timestamp);
+          
           // Update game state when buzzer is pressed
           setGame(prevGame => prevGame ? {
             ...prevGame,
@@ -760,7 +765,7 @@ export default function HostPage() {
             {game.buzzerPressed && (
               <div className="bg-green-600 rounded-lg p-4 mb-6 text-center">
                 <p className="text-2xl font-bold text-white">
-                  🔥 Team "{game.buzzerPressed.teamName || 'Unknown'}" pressed the buzzer first! 🔥
+                  🔥 Team "{game.buzzerPressed.teamName || game.buzzerPressed.teamId || 'Unknown'}" pressed the buzzer first! 🔥
                 </p>
                 <div className="mt-3">
                   <button

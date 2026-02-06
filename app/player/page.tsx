@@ -9,6 +9,11 @@ function PlayerPageContent() {
   const gameCode = searchParams?.get('code');
   const teamName = searchParams?.get('team');
   
+  console.log('🎮 Player Page Loaded');
+  console.log('   Game Code:', gameCode);
+  console.log('   Team Name:', teamName);
+  console.log('   Full URL params:', Object.fromEntries(searchParams?.entries() || []));
+  
   const [game, setGame] = useState<Game | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
@@ -17,9 +22,20 @@ function PlayerPageContent() {
   const [buzzerWinnerTeam, setBuzzerWinnerTeam] = useState<string | null>(null);
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const myTeamIdRef = useRef<string | null>(null);
+  const hasConnectedRef = useRef(false);
 
   useEffect(() => {
     if (!gameCode || !teamName) return;
+    
+    // Prevent duplicate connections in React StrictMode
+    if (hasConnectedRef.current) {
+      console.log('⚠️ Skipping duplicate WebSocket connection');
+      return;
+    }
+    
+    hasConnectedRef.current = true;
+    console.log('🔌 Creating WebSocket connection...');
 
     // Connect to WebSocket
     wsRef.current = new WebSocket('ws://localhost:8080');
@@ -39,10 +55,23 @@ function PlayerPageContent() {
       
       switch (message.type) {
         case 'joined_game':
-          console.log('Player joined game:', message.data.game);
+          console.log('🎮 Player joined game - Full message data:', message.data);
+          console.log('   Game:', message.data.game);
+          console.log('   Team ID:', message.data.teamId);
+          console.log('   Team Name:', message.data.teamName);
+          
+          if (!message.data.teamId) {
+            console.error('❌ ERROR: No teamId in joined_game message!');
+            console.error('   Full message:', JSON.stringify(message, null, 2));
+          }
+          
           setGame(message.data.game);
           setMyTeamId(message.data.teamId);
+          myTeamIdRef.current = message.data.teamId;
           setHasJoined(true);
+          
+          console.log('✅ State updated - myTeamId:', message.data.teamId);
+          console.log('✅ Ref updated - myTeamIdRef.current:', myTeamIdRef.current);
           break;
         case 'game_update':
           console.log('Game update received:', message.data.game.gameState);
@@ -61,21 +90,22 @@ function PlayerPageContent() {
           break;
         case 'buzzer_pressed':
           console.log('Buzzer pressed by team:', message.data);
-          console.log('My Team ID:', myTeamId);
+          console.log('My Team ID (state):', myTeamId);
+          console.log('My Team ID (ref):', myTeamIdRef.current);
           console.log('Buzzer pressed by team ID:', message.data.teamId);
           
-          // Find the team name that pressed the buzzer
-          const winnerTeam = game?.teams.find(t => t.id === message.data.teamId);
-          setBuzzerWinnerTeam(winnerTeam?.name || 'Unknown Team');
+          // The server already sends teamName in the message data
+          setBuzzerWinnerTeam(message.data.teamName || 'Unknown Team');
           
-          // Check if this team pressed the buzzer
-          if (message.data.teamId === myTeamId) {
+          // Check if this team pressed the buzzer using ref for immediate value
+          const currentTeamId = myTeamIdRef.current || myTeamId;
+          if (message.data.teamId === currentTeamId) {
             setBuzzPressed(true);
-            console.log('My team pressed the buzzer!');
+            console.log('✅ My team pressed the buzzer!');
           } else {
             // Another team pressed the buzzer first
             setBuzzPressed(false);
-            console.log('Another team pressed the buzzer first');
+            console.log('❌ Another team pressed the buzzer first');
           }
           // Don't disable buzzer - let reset handle it
           break;
@@ -106,27 +136,33 @@ function PlayerPageContent() {
     };
 
     wsRef.current.onclose = () => {
+      console.log('🔌 WebSocket closed');
       setIsConnected(false);
+      hasConnectedRef.current = false;
     };
 
     return () => {
+      console.log('🧹 Cleaning up WebSocket connection');
       wsRef.current?.close();
+      hasConnectedRef.current = false;
     };
   }, [gameCode, teamName]);
 
   const pressBuzzer = () => {
+    const currentTeamId = myTeamIdRef.current || myTeamId;
     console.log('🔔 Player pressing buzzer');
     console.log('   canBuzz:', canBuzz);
     console.log('   gameCode:', gameCode);
-    console.log('   myTeamId:', myTeamId);
+    console.log('   myTeamId (state):', myTeamId);
+    console.log('   myTeamId (ref):', myTeamIdRef.current);
     console.log('   wsRef:', !!wsRef.current);
     
-    if (canBuzz && wsRef.current && gameCode && myTeamId) {
+    if (canBuzz && wsRef.current && gameCode && currentTeamId) {
       console.log('✅ Sending buzzer press to server');
       wsRef.current.send(JSON.stringify({
         type: 'buzzer_press',
         gameCode,
-        data: { teamId: myTeamId }
+        data: { teamId: currentTeamId }
       }));
       // Immediately show buzzed state
       setBuzzPressed(true);

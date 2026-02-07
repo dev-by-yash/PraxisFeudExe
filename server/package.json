@@ -1,0 +1,21 @@
+{
+  "name": "feud-exe-websocket-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for Feud game",
+  "main": "websocket.js",
+  "scripts": {
+    "start": "node websocket.js",
+    "dev": "nodemon websocket.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.0",
+    "mongoose": "^8.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

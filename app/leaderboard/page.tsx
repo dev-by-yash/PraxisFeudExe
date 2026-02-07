@@ -36,16 +36,16 @@ function LeaderboardPageContent() {
         case 'joined_game':
           console.log('📊 Leaderboard joined game');
           if (message.data.game?.teams) {
-            console.log('📊 Initial teams:', message.data.game.teams.map(t => `${t.name}: ${t.score}`));
-            const sortedTeams = [...message.data.game.teams].sort((a, b) => (b.score || 0) - (a.score || 0));
+            console.log('📊 Initial teams:', message.data.game.teams.map((t: Team) => `${t.name}: ${t.score}`));
+            const sortedTeams = [...message.data.game.teams].sort((a: Team, b: Team) => (b.score || 0) - (a.score || 0));
             setTeams(sortedTeams);
           }
           break;
         case 'game_update':
           console.log('📊 Leaderboard received game_update');
           if (message.data.game?.teams) {
-            console.log('📊 Updated teams:', message.data.game.teams.map(t => `${t.name}: ${t.score}`));
-            const sortedTeams = [...message.data.game.teams].sort((a, b) => (b.score || 0) - (a.score || 0));
+            console.log('📊 Updated teams:', message.data.game.teams.map((t: Team) => `${t.name}: ${t.score}`));
+            const sortedTeams = [...message.data.game.teams].sort((a: Team, b: Team) => (b.score || 0) - (a.score || 0));
             setTeams(sortedTeams);
           }
           break;
@@ -57,15 +57,15 @@ function LeaderboardPageContent() {
               ...team,
               score: message.data.scores[team.id] !== undefined ? message.data.scores[team.id] : team.score
             }));
-            console.log('📊 Teams after points update:', updatedTeams.map(t => `${t.name}: ${t.score}`));
-            return updatedTeams.sort((a, b) => (b.score || 0) - (a.score || 0));
+            console.log('📊 Teams after points update:', updatedTeams.map((t: Team) => `${t.name}: ${t.score}`));
+            return updatedTeams.sort((a: Team, b: Team) => (b.score || 0) - (a.score || 0));
           });
           break;
         case 'teams_loaded':
           console.log('📊 Leaderboard received teams_loaded');
           if (message.data.teams) {
-            console.log('📊 Loaded teams:', message.data.teams.map(t => `${t.name}: ${t.score}`));
-            const sortedTeams = [...message.data.teams].sort((a, b) => (b.score || 0) - (a.score || 0));
+            console.log('📊 Loaded teams:', message.data.teams.map((t: Team) => `${t.name}: ${t.score}`));
+            const sortedTeams = [...message.data.teams].sort((a: Team, b: Team) => (b.score || 0) - (a.score || 0));
             setTeams(sortedTeams);
           }
           break;

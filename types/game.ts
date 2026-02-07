@@ -11,6 +11,7 @@ export interface Team {
   score: number;
   players: Player[];
   strikes: number;
+  gameCode?: string; // Optional - teams can be associated with specific games
 }
 
 export interface Answer {

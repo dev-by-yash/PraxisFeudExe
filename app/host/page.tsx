@@ -105,7 +105,7 @@ export default function HostPage() {
         case 'game_update':
           console.log('📨 GAME_UPDATE received');
           console.log('   Server game teams:', message.data.game.teams?.length || 0);
-          console.log('   Server team scores:', message.data.game.teams?.map(t => `${t.name}: ${t.score}`));
+          console.log('   Server team scores:', message.data.game.teams?.map((t: any) => `${t.name}: ${t.score}`));
           
           // Use server data as source of truth
           setGame(message.data.game);
@@ -203,7 +203,7 @@ export default function HostPage() {
           
           if (message.data.teams && message.data.teams.length > 0) {
             console.log('✅ Teams found:');
-            message.data.teams.forEach((team, index) => {
+            message.data.teams.forEach((team: any, index: number) => {
               console.log(`   ${index + 1}. ${team.name} (ID: ${team.id}, Game: ${team.gameCode || 'unknown'})`);
               console.log(`      Players: ${team.players?.length || 0}`);
             });
@@ -345,13 +345,13 @@ export default function HostPage() {
           rounds: [],
           currentRoundIndex: 0,
           currentTeamTurn: team1.id,
-          gameState: 'waiting',
+          gameState: 'waiting' as const,
           buzzerPressed: null,
           createdAt: new Date(),
           isActive: true
         };
         
-        console.log('✅ Local game state updated with teams:', newGame.teams.map(t => t.name));
+        console.log('✅ Local game state updated with teams:', newGame.teams.map((t: any) => t.name));
         return newGame;
       });
       

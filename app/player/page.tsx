@@ -219,37 +219,19 @@ function PlayerPageContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col items-center justify-center p-4">
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Feud.Exe</h1>
-        <p className="text-blue-200 text-lg">Team: {teamName}</p>
-        <p className="text-blue-300">Game: {gameCode}</p>
+      <div className="text-center mb-12">
+        <h1 className="text-5xl font-bold text-white mb-4">Feud.Exe</h1>
+        <p className="text-blue-200 text-2xl font-semibold">Team: {teamName}</p>
+        <p className="text-blue-300 text-lg">Game: {gameCode}</p>
       </div>
 
-      {/* Game Info */}
-      {game && (
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-8 w-full max-w-md text-center">
-          <h2 className="text-white text-xl font-semibold mb-2">
-            Round {(game.currentRoundIndex || 0) + 1} of 3
-          </h2>
-          <p className="text-blue-200">
-            Question {(currentRound?.currentQuestionIndex || 0) + 1} of 3
-          </p>
-          
-          {currentQuestion && (
-            <div className="mt-4 p-4 bg-white/10 rounded-lg">
-              <p className="text-white font-medium">{currentQuestion.text}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Buzzer Button */}
-      <div className="flex flex-col items-center space-y-6">
+      {/* Buzzer Button - Main Focus */}
+      <div className="flex flex-col items-center space-y-8">
         <button
           onClick={pressBuzzer}
           disabled={!canBuzz && !buzzPressed}
           className={`
-            w-64 h-64 rounded-full text-4xl font-bold transition-all duration-200 transform
+            w-80 h-80 rounded-full text-5xl font-bold transition-all duration-200 transform
             ${canBuzz && !buzzPressed
               ? 'bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white shadow-2xl hover:scale-105 animate-pulse'
               : buzzPressed
@@ -261,38 +243,36 @@ function PlayerPageContent() {
           {buzzPressed ? '✓ BUZZED!' : canBuzz ? '🔥 BUZZ!' : 'WAIT...'}
         </button>
 
-        <div className="text-center">
-          <p className="text-sm text-gray-400 mb-2">Game State: {game?.gameState}</p>
-          <p className="text-sm text-gray-400 mb-4">Can Buzz: {canBuzz ? 'Yes' : 'No'}</p>
-          
+        {/* Status Messages */}
+        <div className="text-center min-h-[120px] flex items-center justify-center">
           {game?.gameState === 'waiting' && (
-            <p className="text-white text-lg">Waiting for host to start the game...</p>
+            <p className="text-white text-2xl">Waiting for host to start the game...</p>
           )}
           {game?.gameState === 'playing' && (
-            <p className="text-yellow-400 text-lg">Game started! Waiting for buzzer to be enabled...</p>
+            <p className="text-yellow-400 text-2xl">Game started! Waiting for buzzer...</p>
           )}
           {game?.gameState === 'buzzer' && !buzzPressed && !buzzerWinnerTeam && (
-            <p className="text-green-400 text-lg font-semibold animate-bounce">
-              Ready to buzz! Tap the button when you know the answer!
+            <p className="text-green-400 text-2xl font-semibold animate-bounce">
+              🎯 Ready to buzz! Tap when you know the answer!
             </p>
           )}
           {game?.gameState === 'answering' && buzzerWinnerTeam && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {buzzPressed ? (
                 <div>
-                  <p className="text-green-400 text-xl font-bold animate-pulse">
+                  <p className="text-green-400 text-3xl font-bold animate-pulse">
                     🎉 YOUR TEAM BUZZED FIRST! 🎉
                   </p>
-                  <p className="text-green-300 text-lg">
+                  <p className="text-green-300 text-xl mt-2">
                     Wait for the host to call on your team!
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-red-400 text-xl font-bold">
+                  <p className="text-red-400 text-2xl font-bold">
                     ❌ Team "{buzzerWinnerTeam}" buzzed first!
                   </p>
-                  <p className="text-yellow-300 text-lg">
+                  <p className="text-yellow-300 text-lg mt-2">
                     Better luck next time!
                   </p>
                 </div>
@@ -301,31 +281,6 @@ function PlayerPageContent() {
           )}
         </div>
       </div>
-
-      {/* Teams Score */}
-      {game && (
-        <div className="mt-8 bg-white/10 backdrop-blur-lg rounded-2xl p-6 w-full max-w-md">
-          <h3 className="text-white text-lg font-semibold mb-4 text-center">Scores</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {game.teams.map((team) => (
-              <div key={team.id} className="text-center">
-                <p className="text-white font-semibold">{team.name}</p>
-                <p className="text-2xl font-bold text-blue-300">{team.score}</p>
-                <div className="flex justify-center space-x-1 mt-1">
-                  {[...Array(3)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-2 h-2 rounded-full ${
-                        i < team.strikes ? 'bg-red-500' : 'bg-gray-600'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

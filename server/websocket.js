@@ -1282,12 +1282,16 @@ wss.on('connection', (ws) => {
                   team.strikes = 0;
                 });
                 game.buzzerPressed = null;
+                
+                // Set to 'playing' state - host must manually enable buzzer
                 if (game.gameState !== 'finished') {
-                  game.gameState = 'buzzer';
+                  game.gameState = 'playing';
                 }
                 
                 // Save and broadcast immediately, then return to prevent general broadcast
                 await game.save();
+                
+                // Broadcast question change
                 broadcast(message.gameCode, {
                   type: 'question_changed',
                   data: { 
@@ -1296,6 +1300,7 @@ wss.on('connection', (ws) => {
                     gameState: game.gameState
                   }
                 });
+                
                 console.log(`Host action completed: ${action.type}`);
                 return;
 

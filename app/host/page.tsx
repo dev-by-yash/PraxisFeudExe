@@ -169,6 +169,7 @@ export default function HostPage() {
           console.log('📨 QUESTION_CHANGED from server');
           console.log('   New round index:', message.data.currentRoundIndex);
           console.log('   New question index:', message.data.currentQuestionIndex);
+          console.log('   New game state:', message.data.gameState);
           // Update game state but preserve team scores
           setGame(prevGame => {
             if (!prevGame) return prevGame;
@@ -179,20 +180,23 @@ export default function HostPage() {
               updatedRounds[message.data.currentRoundIndex].currentQuestionIndex = message.data.currentQuestionIndex;
             }
             
-            return {
+            const newGame = {
               ...prevGame,
               currentRoundIndex: message.data.currentRoundIndex,
               rounds: updatedRounds,
               gameState: message.data.gameState,
               buzzerPressed: null,
               // Reset strikes but preserve scores
-              teams: prevGame.teams.map(team => ({
+              teams: prevGame.teams.map((team: any) => ({
                 ...team,
                 strikes: 0,
                 // Keep the score!
                 score: team.score
               }))
             };
+            
+            console.log('✅ Host game state updated to:', newGame.gameState);
+            return newGame;
           });
           break;
         case 'teams_loaded':
@@ -782,6 +786,11 @@ export default function HostPage() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Game Control</h2>
               <div className="space-x-2">
+                {/* Debug: Always show what state we're in */}
+                <span className="text-xs text-gray-400 mr-4">
+                  State: {game.gameState} | Buzzer: {game.buzzerPressed ? 'Yes' : 'No'}
+                </span>
+                
                 {game.gameState === 'waiting' && (
                   <button
                     onClick={startGame}
@@ -798,13 +807,22 @@ export default function HostPage() {
                     Enable Buzzer
                   </button>
                 )}
-                <button
-                  onClick={resetBuzzer}
-                  className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded"
-                  disabled={!game.buzzerPressed}
-                >
-                  Reset Buzzer
-                </button>
+                {game.gameState === 'buzzer' && (
+                  <button
+                    onClick={resetBuzzer}
+                    className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded"
+                  >
+                    Reset Buzzer (Active)
+                  </button>
+                )}
+                {game.gameState === 'answering' && (
+                  <button
+                    onClick={resetBuzzer}
+                    className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded"
+                  >
+                    Reset Buzzer (Answering)
+                  </button>
+                )}
                 <button
                   onClick={nextQuestion}
                   className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"

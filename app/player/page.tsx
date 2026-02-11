@@ -94,6 +94,22 @@ function PlayerPageContent() {
             setCanBuzz(false);
           }
           break;
+        case 'question_changed':
+          console.log('📝 Question changed - resetting buzzer state');
+          console.log('   New game state:', message.data.gameState);
+          // Reset buzzer state for new question
+          setBuzzPressed(false);
+          setBuzzerWinnerTeam(null);
+          setCanBuzz(false); // Wait for host to enable buzzer
+          // Update game state if provided
+          if (message.data.gameState) {
+            setGame(prevGame => prevGame ? {
+              ...prevGame,
+              gameState: message.data.gameState,
+              buzzerPressed: null
+            } : null);
+          }
+          break;
         case 'buzzer_pressed':
           console.log('Buzzer pressed by team:', message.data);
           console.log('My Team ID (state):', myTeamId);

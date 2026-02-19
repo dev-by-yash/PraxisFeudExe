@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 
 // MongoDB connection
-const MONGODB_URI = 'mongodb+srv://yashm13114:sh5VlCTZNnkShVVP@cluster0.lgqyj4p.mongodb.net/praxisFeudExe';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://yashm13114:sh5VlCTZNnkShVVP@cluster0.lgqyj4p.mongodb.net/praxisFeudExe';
+const PORT = parseInt(process.env.PORT) || 8080;
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -214,12 +215,12 @@ function generateGameCode() {
 
 // WebSocket Server
 const wss = new WebSocket.Server({
-  port: 8080,
+  port: PORT,
   host: '0.0.0.0' // Listen on all network interfaces
 });
 const clients = new Map();
 
-console.log('🚀 WebSocket server started on port 8080');
+console.log(`🚀 WebSocket server started on port ${PORT}`);
 console.log('📡 Listening on all network interfaces (0.0.0.0)');
 console.log('💡 Access from other devices using your computer\'s IP address');
 

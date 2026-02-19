@@ -157,8 +157,16 @@ function TeamManagementContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen text-white p-8 relative">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/Hype_Date.png)' }}
+      />
+      {/* Dark overlay for better text readability */}
+      <div className="fixed inset-0 z-0 bg-black/40" />
+      
+      <div className="max-w-4xl mx-auto relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">Team Management</h1>

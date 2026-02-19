@@ -233,7 +233,17 @@ function PlayerPageContent() {
   const currentQuestion = currentRound?.questions[currentRound.currentQuestionIndex || 0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/Hype_Date.png)' }}
+      />
+      {/* Dark overlay for better text readability */}
+      <div className="fixed inset-0 z-0 bg-black/40" />
+      
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center">
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-5xl font-bold text-white mb-4">Feud.Exe</h1>
@@ -296,6 +306,7 @@ function PlayerPageContent() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

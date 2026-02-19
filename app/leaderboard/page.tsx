@@ -104,9 +104,15 @@ function LeaderboardPageContent() {
   }
 
   return (
-    <div className="min-h-screen text-white relative overflow-hidden" style={{
-      background: 'radial-gradient(ellipse at center top, #000000 0%, #1B59F5 100%)'
-    }}>
+    <div className="min-h-screen text-white relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/Hype_Date.png)' }}
+      />
+      {/* Dark overlay for better text readability */}
+      <div className="fixed inset-0 z-0 bg-black/40" />
+      
       <div className="max-w-5xl mx-auto p-12 relative z-10 flex flex-col items-center justify-center min-h-screen">
         {/* Leaderboard Title */}
         <h1 

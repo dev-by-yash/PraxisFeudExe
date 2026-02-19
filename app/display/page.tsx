@@ -199,9 +199,15 @@ function DisplayPageContent() {
   const currentQuestion = currentRound?.questions[currentRound.currentQuestionIndex];
 
   return (
-    <div className="min-h-screen text-white relative overflow-hidden" style={{
-      background: 'radial-gradient(ellipse at center top, #000000 0%, #1B59F5 100%)'
-    }}>
+    <div className="min-h-screen text-white relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/Hype_Date.png)' }}
+      />
+      {/* Dark overlay for better text readability */}
+      <div className="fixed inset-0 z-0 bg-black/40" />
+      
       {/* Strike Animation Overlay */}
       {showStrikeAnimation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -259,34 +265,27 @@ function DisplayPageContent() {
         {/* Current Question */}
         {currentQuestion && (
           <>
-            {/* Question Box */}
-            <div 
-              className="w-full max-w-5xl mb-8 p-8 rounded-3xl text-center text-4xl font-bold"
-              style={{
-                background: '#1B59F5',
-                border: '4px solid #F51BAD',
-                boxShadow: '0 0 30px rgba(245, 27, 173, 0.5)',
-                fontFamily: "'Roslindale', 'Arial Black', sans-serif"
-              }}
-            >
-              {currentQuestion.text}
-            </div>
-
-            {/* Top Score Box - Total Revealed Points */}
-            <div 
-              className="mb-8 px-12 py-6 rounded-3xl text-7xl font-bold"
-              style={{
-                background: '#1B59F5',
-                border: '4px solid #F51BAD',
-                boxShadow: '0 0 30px rgba(245, 27, 173, 0.5)',
-                fontFamily: "'Roslindale', 'Arial Black', sans-serif"
-              }}
-            >
-              00
+            {/* Question Box with Logo */}
+            <div className="w-full max-w-5xl mb-8 flex items-center gap-6">
+              {/* Question - Centered */}
+              <div 
+                className="flex-1 p-8 rounded-3xl text-center text-4xl font-bold"
+                style={{
+                  background: '#1B59F5',
+                  border: '4px solid #F51BAD',
+                  boxShadow: '0 0 30px rgba(245, 27, 173, 0.5)',
+                  fontFamily: "'Roslindale', 'Arial Black', sans-serif"
+                }}
+              >
+                {currentQuestion.text}
+              </div>
+              
+              {/* Logo - Right Side */}
+              <img src="/logo.png" alt="Feud.Exe Logo" className="h-24 w-auto drop-shadow-2xl flex-shrink-0" />
             </div>
 
             {/* Main Content Grid */}
-            <div className="w-full max-w-6xl grid grid-cols-[auto_1fr_auto] gap-8 items-center">
+            <div className="w-full max-w-6xl grid grid-cols-[auto_1fr_auto] gap-8 items-start mt-8">
               {/* Left Team Score */}
               <div 
                 className="px-10 py-8 rounded-3xl text-7xl font-bold"
@@ -297,7 +296,7 @@ function DisplayPageContent() {
                   fontFamily: "'Roslindale', 'Arial Black', sans-serif"
                 }}
               >
-                10
+                {game.teams[0]?.score || 0}
               </div>
 
               {/* Answers Grid - 2 columns, 3 rows */}
@@ -346,13 +345,8 @@ function DisplayPageContent() {
                   fontFamily: "'Roslindale', 'Arial Black', sans-serif"
                 }}
               >
-                10
+                {game.teams[1]?.score || 0}
               </div>
-            </div>
-
-            {/* Logo at Bottom */}
-            <div className="mt-12">
-              <img src="/logo.png" alt="Feud.Exe Logo" className="h-32 w-auto drop-shadow-2xl" />
             </div>
           </>
         )}
@@ -369,20 +363,6 @@ function DisplayPageContent() {
             }}
           >
             Ready for buzzer!
-          </div>
-        )}
-
-        {game.buzzerPressed && (
-          <div 
-            className="w-full max-w-4xl p-10 rounded-3xl text-center text-5xl font-bold mb-8"
-            style={{
-              background: '#F51BAD',
-              border: '4px solid #F51BAD',
-              boxShadow: '0 0 40px rgba(245, 27, 173, 0.8)',
-              fontFamily: "'Roslindale', 'Arial Black', sans-serif"
-            }}
-          >
-            🔥 Team "{game.buzzerPressed.teamName || 'Unknown'}" pressed the buzzer first! 🔥
           </div>
         )}
 

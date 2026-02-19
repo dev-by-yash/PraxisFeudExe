@@ -481,8 +481,16 @@ export default function HostPage() {
   const currentQuestion = currentRound?.questions?.[currentRound.currentQuestionIndex || 0];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen text-white p-6 relative">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/Hype_Date.png)' }}
+      />
+      {/* Dark overlay for better text readability */}
+      <div className="fixed inset-0 z-0 bg-black/40" />
+      
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
           <div className="flex justify-between items-center">

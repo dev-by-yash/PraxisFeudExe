@@ -306,33 +306,11 @@ wss.on('connection', (ws) => {
             ws.gameCode = game.code;
             ws.role = 'host';
 
-            // Load any existing teams for this game from database
-            const existingTeams = await Team.find({ gameCode: game.code, isActive: true });
-            const existingPlayers = await Player.find({ gameCode: game.code, isActive: true });
-
-            // Build teams with their players (if any exist)
-            const teamsWithPlayers = existingTeams.map(team => ({
-              id: team.id,
-              name: team.name,
-              score: team.score,
-              strikes: team.strikes,
-              players: existingPlayers.filter(p => p.teamId === team.id).map(p => ({
-                id: p.id,
-                name: p.name,
-                teamId: p.teamId,
-                isConnected: p.isConnected
-              }))
-            }));
-
-            // Update game with teams from database
-            const gameWithTeams = {
-              ...game,
-              teams: teamsWithPlayers
-            };
-
+            // Don't load teams automatically - host must select teams explicitly
+            // This ensures scores start at 0 when teams are selected for a new game
             const response = {
               type: 'game_created',
-              data: { game: gameWithTeams, hostId: ws.id }
+              data: { game: game, hostId: ws.id }
             };
 
             console.log('📤 Sending game_created response to:', ws.id);
@@ -341,7 +319,7 @@ wss.on('connection', (ws) => {
 
             ws.send(JSON.stringify(response));
 
-            console.log('✅ Game created: ${game.code} with ${existingTeams.length} teams from database');
+            console.log(`✅ Game created: ${game.code} - host must select teams`);
           } catch (error) {
             console.error('❌ Create game error:', error);
             ws.send(JSON.stringify({
@@ -378,8 +356,8 @@ wss.on('connection', (ws) => {
             const teamsWithPlayers = teams.map(team => ({
               id: team.id,
               name: team.name,
-              score: team.score,
-              strikes: team.strikes,
+              score: team.score || 0,
+              strikes: team.strikes || 0,
               players: players.filter(p => p.teamId === team.id).map(p => ({
                 id: p.id,
                 name: p.name,
@@ -525,8 +503,8 @@ wss.on('connection', (ws) => {
             const teamsWithPlayers = teams.map(team => ({
               id: team.id,
               name: team.name,
-              score: team.score,
-              strikes: team.strikes,
+              score: team.score || 0,
+              strikes: team.strikes || 0,
               players: players.filter(p => p.teamId === team.id).map(p => ({
                 id: p.id,
                 name: p.name,
@@ -638,43 +616,11 @@ wss.on('connection', (ws) => {
             ws.gameCode = message.gameCode;
             ws.role = 'display';
 
-            // If game has selected teams, load their current data from database
-            if (game.teams && game.teams.length > 0) {
-              const teamIds = game.teams.map(t => t.id);
-              const currentTeams = await Team.find({ id: { $in: teamIds }, isActive: true });
-              const currentPlayers = await Player.find({ teamId: { $in: teamIds }, isActive: true });
-
-              // Build teams with their current data
-              const teamsWithPlayers = currentTeams.map(team => ({
-                id: team.id,
-                name: team.name,
-                score: team.score,
-                strikes: team.strikes,
-                players: currentPlayers.filter(p => p.teamId === team.id).map(p => ({
-                  id: p.id,
-                  name: p.name,
-                  teamId: p.teamId,
-                  isConnected: p.isConnected
-                }))
-              }));
-
-              // Update game with current team data
-              const gameWithTeams = {
-                ...game.toObject(),
-                teams: teamsWithPlayers
-              };
-
-              ws.send(JSON.stringify({
-                type: 'joined_game',
-                data: { game: gameWithTeams }
-              }));
-            } else {
-              // No teams selected yet, send game as-is
-              ws.send(JSON.stringify({
-                type: 'joined_game',
-                data: { game: game.toObject() }
-              }));
-            }
+            // Send the game with its current teams (scores are managed in the game session, not database)
+            ws.send(JSON.stringify({
+              type: 'joined_game',
+              data: { game: game.toObject() }
+            }));
 
             console.log(`Display joined game: ${message.gameCode} with ${game.teams?.length || 0} selected teams`);
           } catch (error) {
@@ -888,8 +834,8 @@ wss.on('connection', (ws) => {
             const teamsWithPlayers = currentTeams.map(team => ({
               id: team.id,
               name: team.name,
-              score: team.score,
-              strikes: team.strikes,
+              score: team.score || 0,
+              strikes: team.strikes || 0,
               players: currentPlayers.filter(p => p.teamId === team.id).map(p => ({
                 id: p.id,
                 name: p.name,
@@ -946,8 +892,8 @@ wss.on('connection', (ws) => {
               id: team.id,
               name: team.name,
               gameCode: team.gameCode, // Include gameCode for reference
-              score: team.score,
-              strikes: team.strikes,
+              score: team.score || 0,
+              strikes: team.strikes || 0,
               players: allPlayers.filter(p => p.teamId === team.id).map(p => ({
                 id: p.id,
                 name: p.name,
@@ -1437,3 +1383,4 @@ wss.on('connection', (ws) => {
 
 console.log('WebSocket server running on port 8080');
 console.log('MongoDB connected to:', MONGODB_URI);
+

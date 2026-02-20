@@ -919,16 +919,28 @@ export default function HostPage() {
                         className={`p-3 rounded-lg flex justify-between items-center ${
                           answer.revealed 
                             ? 'bg-green-600' 
-                            : 'bg-gray-700 hover:bg-gray-600 cursor-pointer'
+                            : 'bg-gray-700'
                         }`}
-                        onClick={() => !answer.revealed && revealAnswer(index)}
                       >
-                        <span className="font-semibold">
-                          {answer.revealed ? answer.text : `Answer ${index + 1}`}
+                        <span className="font-semibold flex-1">
+                          {answer.text}
                         </span>
-                        <span className="text-xl font-bold">
-                          {answer.revealed ? answer.points : '?'}
+                        <span className="text-xl font-bold mr-4">
+                          {answer.points}
                         </span>
+                        {!answer.revealed && (
+                          <button
+                            onClick={() => revealAnswer(index)}
+                            className="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded text-sm font-semibold"
+                          >
+                            Reveal
+                          </button>
+                        )}
+                        {answer.revealed && (
+                          <span className="text-green-200 text-sm font-semibold">
+                            ✓ Revealed
+                          </span>
+                        )}
                       </div>
                       
                       {/* Point Assignment Buttons - Only show when answer is revealed */}

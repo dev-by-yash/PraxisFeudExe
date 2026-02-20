@@ -9,7 +9,7 @@ function DisplayPageContent() {
   const searchParams = useSearchParams();
   const gameCode = searchParams?.get('code');
 
-  const [game, setGame] = useState<Game | null>(null);
+  const [game, setGame] = useState<Game | 0>(0);
   const [isConnected, setIsConnected] = useState(false);
   const [showStrikeAnimation, setShowStrikeAnimation] = useState(false);
   const [currentStrikeCount, setCurrentStrikeCount] = useState(0);
@@ -156,6 +156,15 @@ function DisplayPageContent() {
   // Detect strike changes and trigger animation
   useEffect(() => {
     if (!game || !game.teams) return;
+
+    // Initialize previousStrikesRef on first load
+    const isFirstLoad = Object.keys(previousStrikesRef.current).length === 0;
+    if (isFirstLoad) {
+      game.teams.forEach(team => {
+        previousStrikesRef.current[team.id] = team.strikes || 0;
+      });
+      return; // Don't trigger animation on first load
+    }
 
     // Check if any team's strikes increased
     game.teams.forEach(team => {

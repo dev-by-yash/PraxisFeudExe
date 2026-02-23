@@ -13,6 +13,7 @@ function DisplayPageContent() {
   const [isConnected, setIsConnected] = useState(false);
   const [showStrikeAnimation, setShowStrikeAnimation] = useState(false);
   const [currentStrikeCount, setCurrentStrikeCount] = useState(0);
+  const [revealingAnswers, setRevealingAnswers] = useState<Set<number>>(new Set());
   const wsRef = useRef<WebSocket | null>(null);
   const previousStrikesRef = useRef<{ [teamId: string]: number }>({});
 
@@ -47,6 +48,17 @@ function DisplayPageContent() {
           break;
         case 'answer_revealed':
           console.log('📺 Display received answer_revealed');
+          
+          // Trigger reveal animation
+          setRevealingAnswers(prev => new Set(prev).add(message.data.answerIndex));
+          setTimeout(() => {
+            setRevealingAnswers(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(message.data.answerIndex);
+              return newSet;
+            });
+          }, 800);
+          
           // Update only the answer state, preserve team scores
           setGame(prevGame => {
             if (!prevGame) return prevGame;
@@ -101,6 +113,7 @@ function DisplayPageContent() {
         case 'question_visibility_changed':
           console.log('📺 Display received question_visibility_changed:', message.data.questionVisible);
           console.log('📺 Current game state before update:', game);
+          
           setGame(prevGame => {
             if (!prevGame) {
               console.log('📺 ERROR: prevGame is null/undefined');
@@ -378,7 +391,7 @@ function DisplayPageContent() {
                 {currentQuestion.answers.map((answer, index) => (
                   <div
                     key={index}
-                    className="relative p-6 rounded-3xl flex items-center justify-center text-3xl font-bold transition-all duration-300"
+                    className="relative p-6 rounded-3xl flex items-center justify-center text-3xl font-bold transition-all duration-300 overflow-hidden"
                     style={{
                       background: answer.revealed
                         ? '#F51BAD'
@@ -392,7 +405,13 @@ function DisplayPageContent() {
                     }}
                   >
                     {answer.revealed ? (
-                      <span className="text-white">{answer.text}</span>
+                      <div className="relative w-full overflow-hidden">
+                        <span 
+                          className={`text-white block ${revealingAnswers.has(index) ? 'animate-slide-in-right' : ''}`}
+                        >
+                          {answer.text}
+                        </span>
+                      </div>
                     ) : (
                       <div
                         className="w-16 h-16 rounded-full flex items-center justify-center text-4xl font-bold"

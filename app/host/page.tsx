@@ -663,7 +663,7 @@ export default function HostPage() {
                   {questionsSelected ? '✓ Questions Selected' : 'Select Questions'}
                 </button>
                 <button
-                  onClick={() => window.open(`/team-management?code=${game.code}`, '_blank')}
+                  onClick={() => window.open(`/team-management`, '_blank')}
                   className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded"
                 >
                   Open Team Management

@@ -7,32 +7,36 @@ import { getWebSocketUrl } from '../../lib/websocket';
 
 function TeamManagementContent() {
   const searchParams = useSearchParams();
-  const gameCode = searchParams?.get('code');
+  const gameCode = searchParams?.get('code') || 'STANDALONE'; // Use STANDALONE if no game code
   
-  const [game, setGame] = useState<Game | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]); // Direct teams state instead of game
   const [isConnected, setIsConnected] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const wsRef = useRef<WebSocket | null>(null);
 
+  // Debug: Log teams state changes
   useEffect(() => {
-    if (!gameCode) return;
+    console.log('🔄 Teams state changed:', teams.length, teams);
+  }, [teams]);
 
+  useEffect(() => {
     // Connect to WebSocket
     wsRef.current = new WebSocket(getWebSocketUrl());
     
     wsRef.current.onopen = () => {
-      console.log('WebSocket connected for team management');
+      console.log('WebSocket connected for team management (standalone mode)');
       setIsConnected(true);
-      // Join as team manager
-      const joinMessage = {
-        type: 'team_manager_join',
-        gameCode,
-        data: { role: 'team_manager' }
-      };
-      console.log('Sending join message:', joinMessage);
-      wsRef.current?.send(JSON.stringify(joinMessage));
+      // Load all teams directly
+      setTimeout(() => {
+        if (wsRef.current) {
+          console.log('Requesting all teams from database...');
+          wsRef.current.send(JSON.stringify({
+            type: 'load_all_teams_standalone'
+          }));
+        }
+      }, 500);
     };
 
     wsRef.current.onmessage = (event) => {
@@ -40,39 +44,15 @@ function TeamManagementContent() {
       console.log('Team management received message:', message);
       
       switch (message.type) {
-        case 'joined_game':
-          console.log('Joined game - updating state with teams:', message.data.game.teams?.length || 0);
-          setGame(message.data.game);
-          // Load all teams from database after joining
-          setTimeout(() => {
-            if (wsRef.current && gameCode) {
-              console.log('Requesting all teams from database...');
-              wsRef.current.send(JSON.stringify({
-                type: 'load_all_teams',
-                gameCode: gameCode
-              }));
-            }
-          }, 500);
-          break;
-        case 'game_update':
-          console.log('Game update - updating state with teams:', message.data.game.teams?.length || 0);
-          setGame(message.data.game);
-          break;
         case 'teams_loaded':
-          console.log('Teams loaded from database:', message.data.teams.length);
+          console.log('📨 Teams loaded from database:', message.data.teams.length);
+          console.log('📨 Teams data:', message.data.teams);
           message.data.teams.forEach((team: Team, index: number) => {
             console.log(`  ${index + 1}. ${team.name} - ${team.players?.length || 0} players`);
           });
-          // Update game state with all teams from database
-          setGame(prevGame => {
-            if (!prevGame) return null;
-            const updated = {
-              ...prevGame,
-              teams: message.data.teams
-            };
-            console.log('Updated game state with teams:', updated.teams.length);
-            return updated;
-          });
+          console.log('📨 Setting teams state...');
+          setTeams(message.data.teams);
+          console.log('✅ Teams state updated');
           break;
         case 'error':
           console.error('WebSocket error:', message.data);
@@ -96,20 +76,19 @@ function TeamManagementContent() {
     return () => {
       wsRef.current?.close();
     };
-  }, [gameCode]);
+  }, []); // Remove gameCode dependency
 
   const sendTeamAction = (action: any) => {
     console.log('Sending team action:', action);
-    if (wsRef.current && gameCode) {
+    if (wsRef.current) {
       const message = {
-        type: 'team_management_action',
-        gameCode,
+        type: 'team_management_action_standalone',
         data: action
       };
       console.log('WebSocket message:', message);
       wsRef.current.send(JSON.stringify(message));
     } else {
-      console.error('WebSocket not connected or no game code');
+      console.error('WebSocket not connected');
     }
   };
 
@@ -165,18 +144,10 @@ function TeamManagementContent() {
     });
   };
 
-  if (!gameCode) {
-    return (
-      <div className="min-h-screen bg-red-900 flex items-center justify-center">
-        <div className="text-white text-xl">Invalid game code</div>
-      </div>
-    );
-  }
-
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Connecting to game...</div>
+        <div className="text-white text-xl">Connecting to server...</div>
       </div>
     );
   }
@@ -195,7 +166,8 @@ function TeamManagementContent() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">Team Management</h1>
-          <p className="text-gray-300">Game Code: <span className="text-xl font-mono bg-blue-600 px-3 py-1 rounded">{gameCode}</span></p>
+          <p className="text-gray-300">Manage teams and players independently</p>
+          <p className="text-sm text-gray-400 mt-2">Teams loaded: {teams.length}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -238,7 +210,7 @@ function TeamManagementContent() {
                 className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-lg"
               >
                 <option value="">Select Team</option>
-                {game?.teams.map((team) => (
+                {teams.map((team) => (
                   <option key={team.id} value={team.id}>
                     {team.name}
                   </option>
@@ -259,7 +231,7 @@ function TeamManagementContent() {
         <div className="bg-gray-800 rounded-lg p-6">
           <h2 className="text-2xl font-bold mb-6">Teams</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {game?.teams.map((team: Team) => (
+            {teams.map((team: Team) => (
               <div key={team.id} className="bg-gray-700 rounded-lg p-4">
                 <h3 className="text-xl font-bold mb-4">{team.name}</h3>
                 <div className="space-y-2">
@@ -283,7 +255,7 @@ function TeamManagementContent() {
             ))}
           </div>
           
-          {game?.teams.length === 0 && (
+          {teams.length === 0 && (
             <p className="text-gray-400 text-center text-lg">No teams created yet</p>
           )}
         </div>

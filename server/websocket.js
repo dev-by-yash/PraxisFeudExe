@@ -897,6 +897,167 @@ wss.on('connection', (ws) => {
           }
           break;
 
+        case 'load_all_teams_standalone':
+          try {
+            console.log('📥 Received load_all_teams_standalone request');
+            
+            // Load ALL teams (not filtered by game code)
+            const allTeams = await Team.find({ isActive: true });
+            const allPlayers = await Player.find({ isActive: true });
+
+            console.log(`📊 Found ${allTeams.length} teams and ${allPlayers.length} players (standalone)`);
+
+            // Build teams with their players
+            const teamsWithPlayers = allTeams.map(team => ({
+              id: team.id,
+              name: team.name,
+              score: team.score || 0,
+              strikes: team.strikes || 0,
+              players: allPlayers.filter(p => p.teamId === team.id).map(p => ({
+                id: p.id,
+                name: p.name,
+                teamId: p.teamId,
+                isConnected: p.isConnected
+              }))
+            }));
+
+            ws.send(JSON.stringify({
+              type: 'teams_loaded',
+              data: { teams: teamsWithPlayers }
+            }));
+
+            console.log(`✅ Loaded ${allTeams.length} teams for standalone management`);
+          } catch (error) {
+            console.error('❌ Load teams standalone error:', error);
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Failed to load teams: ' + error.message }
+            }));
+          }
+          break;
+
+        case 'team_management_action_standalone':
+          console.log('Received standalone team management action:', message.data);
+          try {
+            const action = message.data;
+            console.log('Processing standalone action:', action.type);
+
+            switch (action.type) {
+              case 'create_team':
+                const newTeamId = `team_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const newTeam = new Team({
+                  id: newTeamId,
+                  name: action.teamName,
+                  gameCode: 'GLOBAL',
+                  score: 0,
+                  strikes: 0
+                });
+                await newTeam.save();
+                console.log(`✅ Created team in DB: ${action.teamName} (GLOBAL)`);
+                break;
+
+              case 'delete_team':
+                await Team.deleteOne({ id: action.teamId });
+                await Player.updateMany(
+                  { teamId: action.teamId },
+                  { $set: { teamId: null, teamName: null } }
+                );
+                console.log(`✅ Deleted team from DB: ${action.teamId}`);
+                break;
+
+              case 'add_player_to_team':
+                const targetTeam = await Team.findOne({ id: action.teamId });
+                if (targetTeam) {
+                  let player = await Player.findOne({ id: action.playerId });
+
+                  if (player) {
+                    player.teamId = action.teamId;
+                    player.teamName = targetTeam.name;
+                    player.gameCode = 'GLOBAL';
+                    await player.save();
+                  } else {
+                    player = new Player({
+                      id: action.playerId,
+                      name: action.playerName,
+                      gameCode: 'GLOBAL',
+                      teamId: action.teamId,
+                      teamName: targetTeam.name,
+                      isConnected: true
+                    });
+                    await player.save();
+                  }
+                  console.log(`✅ Added player to DB: ${action.playerName} -> ${targetTeam.name}`);
+                }
+                break;
+
+              case 'remove_player_from_team':
+                await Player.updateOne(
+                  { id: action.playerId },
+                  { $set: { teamId: null, teamName: null } }
+                );
+                console.log(`✅ Removed player from team in DB: ${action.playerId}`);
+                break;
+
+              case 'move_player':
+                const toTeam = await Team.findOne({ id: action.toTeamId });
+                if (toTeam) {
+                  await Player.updateOne(
+                    { id: action.playerId },
+                    { $set: { teamId: action.toTeamId, teamName: toTeam.name } }
+                  );
+                  console.log(`✅ Moved player in DB: ${action.playerId} -> ${toTeam.name}`);
+                }
+                break;
+
+              case 'rename_team':
+                const teamToRename = await Team.findOne({ id: action.teamId });
+                if (teamToRename) {
+                  teamToRename.name = action.newName;
+                  await teamToRename.save();
+                  await Player.updateMany(
+                    { teamId: action.teamId },
+                    { $set: { teamName: action.newName } }
+                  );
+                  console.log(`✅ Renamed team in DB: ${action.newName}`);
+                }
+                break;
+            }
+
+            // Fetch updated teams and players
+            const teams = await Team.find({ isActive: true });
+            const players = await Player.find({ isActive: true });
+
+            console.log(`📊 Fetched ${teams.length} teams and ${players.length} players (standalone)`);
+
+            const teamsWithPlayers = teams.map(team => ({
+              id: team.id,
+              name: team.name,
+              score: team.score || 0,
+              strikes: team.strikes || 0,
+              players: players.filter(p => p.teamId === team.id).map(p => ({
+                id: p.id,
+                name: p.name,
+                teamId: p.teamId,
+                isConnected: p.isConnected
+              }))
+            }));
+
+            // Send updated teams back
+            ws.send(JSON.stringify({
+              type: 'teams_loaded',
+              data: { teams: teamsWithPlayers }
+            }));
+
+            console.log(`✅ Standalone team management action completed: ${action.type}`);
+          } catch (error) {
+            console.error('❌ Standalone team management action error:', error);
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Failed to perform team management action: ' + error.message }
+            }));
+          }
+          break;
+
         case 'select_questions':
           try {
             console.log('📥 Received select_questions request');

@@ -41,6 +41,8 @@ function DisplayPageContent() {
           break;
         case 'game_update':
           console.log('📺 Display received game_update');
+          console.log('📺 game_update data:', message.data.game);
+          console.log('📺 game_update questionVisible:', message.data.game.questionVisible);
           setGame(message.data.game);
           break;
         case 'answer_revealed':
@@ -68,6 +70,7 @@ function DisplayPageContent() {
           console.log('📺 Display received question_changed');
           console.log('   New round index:', message.data.currentRoundIndex);
           console.log('   New question index:', message.data.currentQuestionIndex);
+          console.log('   Question visible:', message.data.questionVisible);
           // Update game state but preserve team scores
           setGame(prevGame => {
             if (!prevGame) return prevGame;
@@ -84,6 +87,7 @@ function DisplayPageContent() {
               rounds: updatedRounds,
               gameState: message.data.gameState,
               buzzerPressed: null,
+              questionVisible: message.data.questionVisible !== undefined ? message.data.questionVisible : false,
               // Reset strikes but preserve scores
               teams: prevGame.teams.map(team => ({
                 ...team,
@@ -92,6 +96,22 @@ function DisplayPageContent() {
                 score: team.score
               }))
             };
+          });
+          break;
+        case 'question_visibility_changed':
+          console.log('📺 Display received question_visibility_changed:', message.data.questionVisible);
+          console.log('📺 Current game state before update:', game);
+          setGame(prevGame => {
+            if (!prevGame) {
+              console.log('📺 ERROR: prevGame is null/undefined');
+              return null;
+            }
+            const updated = {
+              ...prevGame,
+              questionVisible: message.data.questionVisible
+            };
+            console.log('📺 Updated game.questionVisible to:', updated.questionVisible);
+            return updated;
           });
           break;
         case 'points_updated':
@@ -206,6 +226,12 @@ function DisplayPageContent() {
 
   const currentRound = game.rounds[game.currentRoundIndex];
   const currentQuestion = currentRound?.questions[currentRound.currentQuestionIndex];
+  const hasQuestions = currentRound?.questions && currentRound.questions.length > 0;
+
+  // Debug logging
+  console.log('📺 RENDER - game.questionVisible:', game.questionVisible);
+  console.log('📺 RENDER - currentQuestion exists:', !!currentQuestion);
+  console.log('📺 RENDER - hasQuestions:', hasQuestions);
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden">
@@ -276,23 +302,61 @@ function DisplayPageContent() {
           <img src="/logo.png" alt="Feud.Exe Logo" className="h-24 w-auto drop-shadow-2xl" />
         </div>
 
-        {/* Current Question */}
-        {currentQuestion && (
-          <>
-            {/* Question Box - Full Width */}
-            <div className="w-full max-w-5xl mb-8">
-              <div 
-                className="p-8 rounded-3xl text-center text-4xl font-bold"
-                style={{
-                  background: '#1B59F5',
-                  border: '4px solid #F51BAD',
-                  boxShadow: '0 0 30px rgba(245, 27, 173, 0.5)',
-                  fontFamily: "'Roslindale', 'Arial Black', sans-serif"
-                }}
-              >
-                {currentQuestion.text}
-              </div>
+        {/* No Questions Selected Message */}
+        {!hasQuestions && (
+          <div className="flex items-center justify-center min-h-screen">
+            <div 
+              className="p-12 rounded-3xl text-center max-w-2xl"
+              style={{
+                background: '#1B59F5',
+                border: '4px solid #F51BAD',
+                boxShadow: '0 0 40px rgba(245, 27, 173, 0.8)',
+                fontFamily: "'Roslindale', 'Arial Black', sans-serif"
+              }}
+            >
+              <p className="text-6xl mb-6">⚠️</p>
+              <p className="text-4xl font-bold mb-4">No Questions Selected</p>
+              <p className="text-2xl text-blue-200">
+                Waiting for host to select questions...
+              </p>
             </div>
+          </div>
+        )}
+
+        {/* Current Question */}
+        {currentQuestion && hasQuestions && (
+          <>
+            {/* Question Box - Full Width - Only show if questionVisible is true */}
+            {game.questionVisible === true ? (
+              <div className="w-full max-w-5xl mb-8">
+                <div 
+                  className="p-8 rounded-3xl text-center text-4xl font-bold"
+                  style={{
+                    background: '#1B59F5',
+                    border: '4px solid #F51BAD',
+                    boxShadow: '0 0 30px rgba(245, 27, 173, 0.5)',
+                    fontFamily: "'Roslindale', 'Arial Black', sans-serif"
+                  }}
+                >
+                  {currentQuestion.text}
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-5xl mb-8">
+                <div 
+                  className="p-8 rounded-3xl text-center text-3xl font-bold"
+                  style={{
+                    background: '#1B59F5',
+                    border: '4px solid #F51BAD',
+                    boxShadow: '0 0 30px rgba(245, 27, 173, 0.5)',
+                    fontFamily: "'Roslindale', 'Arial Black', sans-serif",
+                    opacity: 0.5
+                  }}
+                >
+                  Waiting for host to show question...
+                </div>
+              </div>
+            )}
 
             {/* Main Content Grid */}
             <div className="w-full max-w-6xl grid grid-cols-[auto_1fr_auto] gap-8 items-start mt-8">

@@ -48,12 +48,13 @@ export interface Game {
     teamName: string;
     timestamp: number;
   } | null;
+  questionVisible?: boolean; // Track if question is shown on display
   createdAt: Date;
   isActive: boolean;
 }
 
 export interface WSMessage {
-  type: 'host_create' | 'player_join' | 'display_join' | 'leaderboard_join' | 'buzzer_press' | 'host_action' | 'game_update' | 'error' | 'game_created' | 'joined_game' | 'player_joined' | 'buzzer_pressed' | 'buzzer_enabled' | 'buzzer_reset' | 'buzzer_too_late' | 'team_manager_join' | 'team_management_action' | 'team_updated' | 'answer_revealed' | 'question_changed' | 'points_updated' | 'teams_loaded' | 'teams_selected' | 'player_joined_team' | 'load_all_teams';
+  type: 'host_create' | 'player_join' | 'display_join' | 'leaderboard_join' | 'buzzer_press' | 'host_action' | 'game_update' | 'error' | 'game_created' | 'joined_game' | 'player_joined' | 'buzzer_pressed' | 'buzzer_enabled' | 'buzzer_reset' | 'buzzer_too_late' | 'team_manager_join' | 'team_management_action' | 'team_updated' | 'answer_revealed' | 'question_changed' | 'points_updated' | 'teams_loaded' | 'teams_selected' | 'player_joined_team' | 'load_all_teams' | 'question_visibility_changed';
   data: any;
   gameCode?: string;
   playerId?: string;
@@ -61,6 +62,6 @@ export interface WSMessage {
 }
 
 export interface HostAction {
-  type: 'reveal_answer' | 'next_question' | 'next_round' | 'reset_buzzer' | 'add_strike' | 'update_score' | 'manage_teams' | 'start_game' | 'enable_buzzer' | 'add_points' | 'create_team' | 'add_player_to_team' | 'remove_player_from_team';
+  type: 'reveal_answer' | 'next_question' | 'next_round' | 'reset_buzzer' | 'add_strike' | 'update_score' | 'manage_teams' | 'start_game' | 'enable_buzzer' | 'add_points' | 'create_team' | 'add_player_to_team' | 'remove_player_from_team' | 'show_question' | 'hide_question';
   data?: any;
 }

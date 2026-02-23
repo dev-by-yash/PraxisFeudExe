@@ -41,11 +41,12 @@ function TeamManagementContent() {
       
       switch (message.type) {
         case 'joined_game':
-          console.log('Updating game state:', message.data.game);
+          console.log('Joined game - updating state with teams:', message.data.game.teams?.length || 0);
           setGame(message.data.game);
           // Load all teams from database after joining
           setTimeout(() => {
             if (wsRef.current && gameCode) {
+              console.log('Requesting all teams from database...');
               wsRef.current.send(JSON.stringify({
                 type: 'load_all_teams',
                 gameCode: gameCode
@@ -54,17 +55,24 @@ function TeamManagementContent() {
           }, 500);
           break;
         case 'game_update':
-        case 'team_updated':
-          console.log('Updating game state:', message.data.game);
+          console.log('Game update - updating state with teams:', message.data.game.teams?.length || 0);
           setGame(message.data.game);
           break;
         case 'teams_loaded':
-          console.log('All teams loaded:', message.data.teams);
+          console.log('Teams loaded from database:', message.data.teams.length);
+          message.data.teams.forEach((team: Team, index: number) => {
+            console.log(`  ${index + 1}. ${team.name} - ${team.players?.length || 0} players`);
+          });
           // Update game state with all teams from database
-          setGame(prevGame => prevGame ? {
-            ...prevGame,
-            teams: message.data.teams
-          } : null);
+          setGame(prevGame => {
+            if (!prevGame) return null;
+            const updated = {
+              ...prevGame,
+              teams: message.data.teams
+            };
+            console.log('Updated game state with teams:', updated.teams.length);
+            return updated;
+          });
           break;
         case 'error':
           console.error('WebSocket error:', message.data);
@@ -118,16 +126,33 @@ function TeamManagementContent() {
 
   const addPlayer = () => {
     if (newPlayerName.trim() && selectedTeamId) {
-      console.log('Adding player:', newPlayerName.trim(), 'to team:', selectedTeamId);
+      console.log('=== ADD PLAYER START ===');
+      console.log('Player name:', newPlayerName.trim());
+      console.log('Selected team ID:', selectedTeamId);
+      console.log('Game code:', gameCode);
+      console.log('WebSocket connected:', wsRef.current?.readyState === WebSocket.OPEN);
+      
       const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-      sendTeamAction({
+      console.log('Generated player ID:', playerId);
+      
+      const action = {
         type: 'add_player_to_team',
         playerId,
         playerName: newPlayerName.trim(),
         teamId: selectedTeamId
-      });
+      };
+      console.log('Sending action:', action);
+      
+      sendTeamAction(action);
+      
+      console.log('=== ADD PLAYER END ===');
       setNewPlayerName('');
       setSelectedTeamId('');
+    } else {
+      console.warn('Cannot add player - missing name or team:', {
+        hasName: !!newPlayerName.trim(),
+        hasTeam: !!selectedTeamId
+      });
     }
   };
 

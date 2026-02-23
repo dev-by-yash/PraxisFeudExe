@@ -85,123 +85,18 @@ const GameSchema = new mongoose.Schema({
     teamName: String,
     timestamp: Number
   },
+  questionVisible: { type: Boolean, default: false }, // Track if question is shown on display
   createdAt: { type: Date, default: Date.now },
   isActive: { type: Boolean, default: true }
 });
 
 const Game = mongoose.model('Game', GameSchema);
 
-// Sample questions
-const sampleQuestions = [
-  {
-    id: 'q1',
-    text: 'Name something you do when you wake up in the morning',
-    answers: [
-      { text: 'Brush teeth', points: 45, revealed: false },
-      { text: 'Check phone', points: 35, revealed: false },
-      { text: 'Take shower', points: 25, revealed: false },
-      { text: 'Drink water/coffee', points: 20, revealed: false },
-      { text: 'Get dressed', points: 15, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q2',
-    text: 'Name a popular social media platform',
-    answers: [
-      { text: 'Instagram', points: 40, revealed: false },
-      { text: 'WhatsApp', points: 35, revealed: false },
-      { text: 'Facebook', points: 30, revealed: false },
-      { text: 'Twitter/X', points: 25, revealed: false },
-      { text: 'YouTube', points: 20, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q3',
-    text: 'Name something students do during exams',
-    answers: [
-      { text: 'Study all night', points: 45, revealed: false },
-      { text: 'Drink coffee', points: 30, revealed: false },
-      { text: 'Pray', points: 25, revealed: false },
-      { text: 'Panic', points: 20, revealed: false },
-      { text: 'Copy from friends', points: 15, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q4',
-    text: 'Name a popular programming language',
-    answers: [
-      { text: 'Python', points: 40, revealed: false },
-      { text: 'JavaScript', points: 35, revealed: false },
-      { text: 'Java', points: 30, revealed: false },
-      { text: 'C++', points: 25, revealed: false },
-      { text: 'C', points: 20, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q5',
-    text: 'Name something you do when your code doesn\'t work',
-    answers: [
-      { text: 'Google the error', points: 45, revealed: false },
-      { text: 'Ask ChatGPT', points: 35, revealed: false },
-      { text: 'Debug step by step', points: 25, revealed: false },
-      { text: 'Restart the computer', points: 20, revealed: false },
-      { text: 'Cry', points: 15, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q6',
-    text: 'Name a popular code editor/IDE',
-    answers: [
-      { text: 'VS Code', points: 50, revealed: false },
-      { text: 'IntelliJ IDEA', points: 25, revealed: false },
-      { text: 'Sublime Text', points: 20, revealed: false },
-      { text: 'Atom', points: 15, revealed: false },
-      { text: 'Notepad++', points: 10, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q7',
-    text: 'Name something students eat during late night study sessions',
-    answers: [
-      { text: 'Maggi/Instant noodles', points: 45, revealed: false },
-      { text: 'Pizza', points: 30, revealed: false },
-      { text: 'Chips', points: 25, revealed: false },
-      { text: 'Biscuits', points: 20, revealed: false },
-      { text: 'Chocolate', points: 15, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q8',
-    text: 'Name a reason students are late to class',
-    answers: [
-      { text: 'Overslept', points: 40, revealed: false },
-      { text: 'Traffic', points: 30, revealed: false },
-      { text: 'Couldn\'t find the classroom', points: 25, revealed: false },
-      { text: 'Forgot about the class', points: 20, revealed: false },
-      { text: 'Bus was late', points: 15, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  },
-  {
-    id: 'q9',
-    text: 'Name something students do during boring lectures',
-    answers: [
-      { text: 'Use phone', points: 45, revealed: false },
-      { text: 'Sleep', points: 35, revealed: false },
-      { text: 'Doodle', points: 25, revealed: false },
-      { text: 'Chat with friends', points: 20, revealed: false },
-      { text: 'Daydream', points: 15, revealed: false }
-    ],
-    currentAnswerIndex: 0
-  }
-];
+// Import real questions
+const realQuestions = require('./realQuestions');
+
+// Sample questions (kept for reference, but using realQuestions now)
+const sampleQuestions = realQuestions;
 
 function getRandomQuestions() {
   const shuffled = [...sampleQuestions].sort(() => 0.5 - Math.random());
@@ -238,25 +133,25 @@ function broadcast(gameCode, message, excludeId) {
 
 async function createGame(hostId) {
   const gameCode = generateGameCode();
-  const questions = getRandomQuestions();
-
+  
+  // Don't assign questions yet - host will select them
   const rounds = [
     {
       id: 'round1',
       name: 'Round 1',
-      questions: questions.slice(0, 3),
+      questions: [],
       currentQuestionIndex: 0
     },
     {
       id: 'round2',
       name: 'Round 2',
-      questions: questions.slice(3, 6),
+      questions: [],
       currentQuestionIndex: 0
     },
     {
       id: 'round3',
       name: 'Round 3',
-      questions: questions.slice(6, 9),
+      questions: [],
       currentQuestionIndex: 0
     }
   ];
@@ -273,6 +168,7 @@ async function createGame(hostId) {
     currentTeamTurn: 'team1',
     gameState: 'waiting',
     buzzerPressed: null,
+    questionsSelected: false, // Track if questions have been selected
     createdAt: new Date(),
     isActive: true
   };
@@ -281,6 +177,11 @@ async function createGame(hostId) {
   await game.save();
 
   return gameData;
+}
+
+// Function to get all available questions for selection
+function getAllQuestions() {
+  return sampleQuestions;
 }
 
 wss.on('connection', (ws) => {
@@ -348,9 +249,11 @@ wss.on('connection', (ws) => {
             ws.gameCode = message.gameCode;
             ws.role = 'team_manager';
 
-            // Load teams and players from separate collections
-            const teams = await Team.find({ gameCode: message.gameCode, isActive: true });
-            const players = await Player.find({ gameCode: message.gameCode, isActive: true });
+            // Load ALL teams and players (not filtered by game code - teams are global)
+            const teams = await Team.find({ isActive: true });
+            const players = await Player.find({ isActive: true });
+
+            console.log(`📊 Found ${teams.length} teams and ${players.length} players (global)`);
 
             // Build game object with teams and their players
             const teamsWithPlayers = teams.map(team => ({
@@ -412,43 +315,44 @@ wss.on('connection', (ws) => {
                 const newTeam = new Team({
                   id: newTeamId,
                   name: action.teamName,
-                  gameCode: message.gameCode,
+                  gameCode: 'GLOBAL', // Teams are global, not tied to specific game
                   score: 0,
                   strikes: 0
                 });
                 await newTeam.save();
-                console.log(`✅ Created team in DB: ${action.teamName}`);
+                console.log(`✅ Created team in DB: ${action.teamName} (GLOBAL)`);
                 break;
 
               case 'delete_team':
                 // Delete team from database
-                await Team.deleteOne({ id: action.teamId, gameCode: message.gameCode });
+                await Team.deleteOne({ id: action.teamId });
 
                 // Move all players from this team back to waiting (set teamId to null)
                 await Player.updateMany(
-                  { teamId: action.teamId, gameCode: message.gameCode },
+                  { teamId: action.teamId },
                   { $set: { teamId: null, teamName: null } }
                 );
                 console.log(`✅ Deleted team from DB: ${action.teamId}`);
                 break;
 
               case 'add_player_to_team':
-                const targetTeam = await Team.findOne({ id: action.teamId, gameCode: message.gameCode });
+                const targetTeam = await Team.findOne({ id: action.teamId });
                 if (targetTeam) {
                   // Check if player already exists
-                  let player = await Player.findOne({ id: action.playerId, gameCode: message.gameCode });
+                  let player = await Player.findOne({ id: action.playerId });
 
                   if (player) {
                     // Update existing player
                     player.teamId = action.teamId;
                     player.teamName = targetTeam.name;
+                    player.gameCode = 'GLOBAL'; // Players are global too
                     await player.save();
                   } else {
                     // Create new player
                     player = new Player({
                       id: action.playerId,
                       name: action.playerName,
-                      gameCode: message.gameCode,
+                      gameCode: 'GLOBAL', // Players are global
                       teamId: action.teamId,
                       teamName: targetTeam.name,
                       isConnected: true
@@ -462,17 +366,17 @@ wss.on('connection', (ws) => {
               case 'remove_player_from_team':
                 // Set player's teamId to null (move to waiting)
                 await Player.updateOne(
-                  { id: action.playerId, gameCode: message.gameCode },
+                  { id: action.playerId },
                   { $set: { teamId: null, teamName: null } }
                 );
                 console.log(`✅ Removed player from team in DB: ${action.playerId}`);
                 break;
 
               case 'move_player':
-                const toTeam = await Team.findOne({ id: action.toTeamId, gameCode: message.gameCode });
+                const toTeam = await Team.findOne({ id: action.toTeamId });
                 if (toTeam) {
                   await Player.updateOne(
-                    { id: action.playerId, gameCode: message.gameCode },
+                    { id: action.playerId },
                     { $set: { teamId: action.toTeamId, teamName: toTeam.name } }
                   );
                   console.log(`✅ Moved player in DB: ${action.playerId} -> ${toTeam.name}`);
@@ -480,14 +384,14 @@ wss.on('connection', (ws) => {
                 break;
 
               case 'rename_team':
-                const teamToRename = await Team.findOne({ id: action.teamId, gameCode: message.gameCode });
+                const teamToRename = await Team.findOne({ id: action.teamId });
                 if (teamToRename) {
                   teamToRename.name = action.newName;
                   await teamToRename.save();
 
                   // Update all players with this team's new name
                   await Player.updateMany(
-                    { teamId: action.teamId, gameCode: message.gameCode },
+                    { teamId: action.teamId },
                     { $set: { teamName: action.newName } }
                   );
                   console.log(`✅ Renamed team in DB: ${action.newName}`);
@@ -495,9 +399,11 @@ wss.on('connection', (ws) => {
                 break;
             }
 
-            // Fetch updated teams and players from database
-            const teams = await Team.find({ gameCode: message.gameCode, isActive: true });
-            const players = await Player.find({ gameCode: message.gameCode, isActive: true });
+            // Fetch updated teams and players from database (ALL teams, not filtered by game code)
+            const teams = await Team.find({ isActive: true });
+            const players = await Player.find({ isActive: true });
+
+            console.log(`📊 Fetched ${teams.length} teams and ${players.length} players from database (global)`);
 
             // Build game object with teams and their players
             const teamsWithPlayers = teams.map(team => ({
@@ -513,17 +419,21 @@ wss.on('connection', (ws) => {
               }))
             }));
 
+            console.log(`📊 Built teams with players:`, teamsWithPlayers.map(t => `${t.name} (${t.players.length} players)`));
+
             // Update game document with team references
             game.teams = teamsWithPlayers;
             await game.save();
 
             console.log('✅ Broadcasting team updates...');
-            // Broadcast updated game state to all clients
+            
+            // Send teams_loaded message specifically for team management page
             broadcast(message.gameCode, {
-              type: 'team_updated',
-              data: { game: game.toObject() }
+              type: 'teams_loaded',
+              data: { teams: teamsWithPlayers }
             });
 
+            // Also broadcast game update for other clients
             broadcast(message.gameCode, {
               type: 'game_update',
               data: { game: game.toObject() }
@@ -920,6 +830,65 @@ wss.on('connection', (ws) => {
           }
           break;
 
+        case 'load_all_questions':
+          try {
+            console.log('📥 Received load_all_questions request');
+            const allQuestions = getAllQuestions();
+            
+            ws.send(JSON.stringify({
+              type: 'questions_loaded',
+              data: { questions: allQuestions }
+            }));
+
+            console.log(`✅ Loaded ${allQuestions.length} questions for selection`);
+          } catch (error) {
+            console.error('❌ Load questions error:', error);
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Failed to load questions: ' + error.message }
+            }));
+          }
+          break;
+
+        case 'select_questions':
+          try {
+            console.log('📥 Received select_questions request');
+            const game = await Game.findOne({ code: message.gameCode, isActive: true });
+
+            if (!game) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                data: { message: 'Game not found' }
+              }));
+              return;
+            }
+
+            const { round1Questions, round2Questions, round3Questions } = message.data;
+
+            // Update game rounds with selected questions
+            game.rounds[0].questions = round1Questions;
+            game.rounds[1].questions = round2Questions;
+            game.rounds[2].questions = round3Questions;
+            game.questionsSelected = true;
+
+            await game.save();
+
+            // Broadcast updated game to all clients
+            broadcast(message.gameCode, {
+              type: 'game_update',
+              data: { game: game.toObject() }
+            });
+
+            console.log(`✅ Questions selected for game ${message.gameCode}`);
+          } catch (error) {
+            console.error('❌ Select questions error:', error);
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Failed to select questions: ' + error.message }
+            }));
+          }
+          break;
+
         case 'host_action':
           try {
             const game = await Game.findOne({ code: message.gameCode, isActive: true });
@@ -1295,6 +1264,9 @@ wss.on('connection', (ws) => {
                   game.gameState = 'playing';
                 }
 
+                // Hide question on display when moving to next question
+                game.questionVisible = false;
+
                 // Save and broadcast immediately, then return to prevent general broadcast
                 await game.save();
 
@@ -1304,12 +1276,58 @@ wss.on('connection', (ws) => {
                   data: {
                     currentRoundIndex: game.currentRoundIndex,
                     currentQuestionIndex: game.rounds[game.currentRoundIndex].currentQuestionIndex,
-                    gameState: game.gameState
+                    gameState: game.gameState,
+                    questionVisible: false
                   }
                 });
 
                 console.log(`Host action completed: ${action.type}`);
                 return;
+
+              case 'show_question':
+                console.log('👁️ Showing question on display');
+                game.questionVisible = true;
+                await game.save();
+
+                console.log('👁️ game.questionVisible after save:', game.questionVisible);
+                const gameObj = game.toObject();
+                console.log('👁️ gameObj.questionVisible:', gameObj.questionVisible);
+
+                broadcast(message.gameCode, {
+                  type: 'question_visibility_changed',
+                  data: {
+                    questionVisible: true
+                  }
+                });
+
+                broadcast(message.gameCode, {
+                  type: 'game_update',
+                  data: { game: gameObj }
+                });
+
+                console.log(`Host action completed: ${action.type}`);
+                return;
+
+              case 'hide_question':
+                console.log('👁️ Hiding question from display');
+                game.questionVisible = false;
+                await game.save();
+
+                broadcast(message.gameCode, {
+                  type: 'question_visibility_changed',
+                  data: {
+                    questionVisible: false
+                  }
+                });
+
+                broadcast(message.gameCode, {
+                  type: 'game_update',
+                  data: { game: game.toObject() }
+                });
+
+                console.log(`Host action completed: ${action.type}`);
+                return;
+
 
               case 'manage_teams':
                 if (action.data.operation === 'add_player') {

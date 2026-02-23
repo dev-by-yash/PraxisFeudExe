@@ -21,6 +21,16 @@ export default function HostPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const [autoResetTimer, setAutoResetTimer] = useState<NodeJS.Timeout | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
+  
+  // Question selection state
+  const [allQuestions, setAllQuestions] = useState<any[]>([]);
+  const [showQuestionSelection, setShowQuestionSelection] = useState(false);
+  const [selectedRound1, setSelectedRound1] = useState<any[]>([]);
+  const [selectedRound2, setSelectedRound2] = useState<any[]>([]);
+  const [selectedRound3, setSelectedRound3] = useState<any[]>([]);
+  const [currentRoundSelection, setCurrentRoundSelection] = useState<1 | 2 | 3>(1);
+  const [questionsSelected, setQuestionsSelected] = useState(false);
+  const [questionVisible, setQuestionVisible] = useState(false); // Track if question is shown on display
 
   useEffect(() => {
     // Disable auto-reset for now - message should stay until manually reset
@@ -174,6 +184,8 @@ export default function HostPage() {
           console.log('   New round index:', message.data.currentRoundIndex);
           console.log('   New question index:', message.data.currentQuestionIndex);
           console.log('   New game state:', message.data.gameState);
+          // Reset question visibility when question changes
+          setQuestionVisible(false);
           // Update game state but preserve team scores
           setGame(prevGame => {
             if (!prevGame) return prevGame;
@@ -223,6 +235,12 @@ export default function HostPage() {
           setAllTeams(message.data.teams || []);
           console.log('✅ allTeams state updated');
           break;
+        case 'questions_loaded':
+          console.log('📨 QUESTIONS_LOADED message received');
+          console.log('   Number of questions:', message.data.questions?.length || 0);
+          setAllQuestions(message.data.questions || []);
+          console.log('✅ Questions loaded');
+          break;
         case 'buzzer_pressed':
           console.log('📨 HOST received buzzer_pressed:', message.data);
           console.log('   teamId:', message.data.teamId);
@@ -256,6 +274,10 @@ export default function HostPage() {
             gameState: 'buzzer'
           } : null);
           break;
+        case 'question_visibility_changed':
+          console.log('📨 HOST received question_visibility_changed:', message.data.questionVisible);
+          setQuestionVisible(message.data.questionVisible);
+          break;
       }
     };
 
@@ -285,6 +307,60 @@ export default function HostPage() {
         type: 'load_all_teams',
         gameCode: gameCode
       }));
+    }
+  };
+
+  const requestAllQuestions = () => {
+    if (wsRef.current) {
+      console.log('📤 Requesting all questions');
+      wsRef.current.send(JSON.stringify({
+        type: 'load_all_questions'
+      }));
+    }
+  };
+
+  const confirmQuestionSelection = () => {
+    if (selectedRound1.length !== 3 || selectedRound2.length !== 3 || selectedRound3.length !== 3) {
+      alert('Please select exactly 3 questions for each round');
+      return;
+    }
+
+    if (wsRef.current && game) {
+      console.log('📤 Sending selected questions to server');
+      wsRef.current.send(JSON.stringify({
+        type: 'select_questions',
+        gameCode: game.code,
+        data: {
+          round1Questions: selectedRound1,
+          round2Questions: selectedRound2,
+          round3Questions: selectedRound3
+        }
+      }));
+      
+      setQuestionsSelected(true);
+      setShowQuestionSelection(false);
+      alert('Questions selected successfully!');
+    }
+  };
+
+  const toggleQuestionSelection = (question: any) => {
+    const currentSelection = currentRoundSelection === 1 ? selectedRound1 : 
+                            currentRoundSelection === 2 ? selectedRound2 : selectedRound3;
+    const setSelection = currentRoundSelection === 1 ? setSelectedRound1 : 
+                        currentRoundSelection === 2 ? setSelectedRound2 : setSelectedRound3;
+
+    const isSelected = currentSelection.some(q => q.id === question.id);
+    
+    if (isSelected) {
+      // Deselect
+      setSelection(currentSelection.filter(q => q.id !== question.id));
+    } else {
+      // Select (max 3)
+      if (currentSelection.length < 3) {
+        setSelection([...currentSelection, question]);
+      } else {
+        alert('You can only select 3 questions per round');
+      }
     }
   };
 
@@ -449,8 +525,23 @@ export default function HostPage() {
   };
 
   const nextQuestion = () => {
+    setQuestionVisible(false); // Hide question when moving to next
     sendHostAction({
       type: 'next_question'
+    });
+  };
+
+  const showQuestionOnDisplay = () => {
+    setQuestionVisible(true);
+    sendHostAction({
+      type: 'show_question'
+    });
+  };
+
+  const hideQuestionOnDisplay = () => {
+    setQuestionVisible(false);
+    sendHostAction({
+      type: 'hide_question'
     });
   };
 
@@ -532,6 +623,15 @@ export default function HostPage() {
                   Select Teams for Game
                 </button>
                 <button
+                  onClick={() => {
+                    requestAllQuestions();
+                    setShowQuestionSelection(true);
+                  }}
+                  className={`mb-10 px-4 py-2 rounded ${questionsSelected ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+                >
+                  {questionsSelected ? '✓ Questions Selected' : 'Select Questions'}
+                </button>
+                <button
                   onClick={() => window.open(`/team-management?code=${game.code}`, '_blank')}
                   className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded"
                 >
@@ -545,6 +645,85 @@ export default function HostPage() {
                 </button>
               </div>
             </div>
+
+            {/* Question Selection Modal */}
+            {showQuestionSelection && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+                <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+                  <h3 className="text-2xl font-bold mb-4">Select Questions for Each Round</h3>
+                  
+                  {/* Round Tabs */}
+                  <div className="flex space-x-2 mb-4">
+                    <button
+                      onClick={() => setCurrentRoundSelection(1)}
+                      className={`px-4 py-2 rounded ${currentRoundSelection === 1 ? 'bg-blue-600' : 'bg-gray-700'}`}
+                    >
+                      Round 1 ({selectedRound1.length}/3)
+                    </button>
+                    <button
+                      onClick={() => setCurrentRoundSelection(2)}
+                      className={`px-4 py-2 rounded ${currentRoundSelection === 2 ? 'bg-blue-600' : 'bg-gray-700'}`}
+                    >
+                      Round 2 ({selectedRound2.length}/3)
+                    </button>
+                    <button
+                      onClick={() => setCurrentRoundSelection(3)}
+                      className={`px-4 py-2 rounded ${currentRoundSelection === 3 ? 'bg-blue-600' : 'bg-gray-700'}`}
+                    >
+                      Round 3 ({selectedRound3.length}/3)
+                    </button>
+                  </div>
+
+                  {/* Questions List */}
+                  <div className="space-y-2 mb-4 max-h-96 overflow-y-auto">
+                    {allQuestions.map((question) => {
+                      const currentSelection = currentRoundSelection === 1 ? selectedRound1 : 
+                                              currentRoundSelection === 2 ? selectedRound2 : selectedRound3;
+                      const isSelected = currentSelection.some(q => q.id === question.id);
+                      const isUsedInOtherRound = (
+                        (currentRoundSelection !== 1 && selectedRound1.some(q => q.id === question.id)) ||
+                        (currentRoundSelection !== 2 && selectedRound2.some(q => q.id === question.id)) ||
+                        (currentRoundSelection !== 3 && selectedRound3.some(q => q.id === question.id))
+                      );
+
+                      return (
+                        <div
+                          key={question.id}
+                          onClick={() => !isUsedInOtherRound && toggleQuestionSelection(question)}
+                          className={`p-3 rounded cursor-pointer ${
+                            isSelected ? 'bg-green-600' : 
+                            isUsedInOtherRound ? 'bg-gray-600 opacity-50 cursor-not-allowed' :
+                            'bg-gray-700 hover:bg-gray-600'
+                          }`}
+                        >
+                          <div className="font-semibold">{question.text}</div>
+                          <div className="text-sm text-gray-300 mt-1">
+                            {question.answers.length} answers
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={confirmQuestionSelection}
+                      disabled={selectedRound1.length !== 3 || selectedRound2.length !== 3 || selectedRound3.length !== 3}
+                      className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 px-4 py-2 rounded font-semibold"
+                    >
+                      Confirm Selection
+                    </button>
+                    <button
+                      onClick={() => setShowQuestionSelection(false)}
+                      className="flex-1 bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Team Selection Modal */}
             {showTeamSelection && (
@@ -807,9 +986,11 @@ export default function HostPage() {
                 {game.gameState === 'waiting' && (
                   <button
                     onClick={startGame}
-                    className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded"
+                    disabled={!questionsSelected}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded"
+                    title={!questionsSelected ? 'Please select questions first' : ''}
                   >
-                    Start Game
+                    Start Game {!questionsSelected && '(Select Questions First)'}
                   </button>
                 )}
                 {game.gameState === 'playing' && (
@@ -906,10 +1087,44 @@ export default function HostPage() {
               ))}
             </div>
 
-            {currentQuestion && (
+            {!questionsSelected && (
+              <div className="bg-yellow-900 border border-yellow-600 rounded-lg p-6 text-center">
+                <p className="text-xl font-bold text-yellow-300 mb-2">⚠️ No Questions Selected</p>
+                <p className="text-yellow-200 mb-4">Please select 9 questions (3 per round) before starting the game.</p>
+                <button
+                  onClick={() => {
+                    requestAllQuestions();
+                    setShowQuestionSelection(true);
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700 px-6 py-3 rounded font-semibold"
+                >
+                  Select Questions Now
+                </button>
+              </div>
+            )}
+
+            {currentQuestion && questionsSelected && (
               <div>
                 <div className="bg-gray-700 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold mb-2">{currentQuestion.text}</h3>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-semibold">{currentQuestion.text}</h3>
+                    <button
+                      onClick={questionVisible ? hideQuestionOnDisplay : showQuestionOnDisplay}
+                      className={`px-6 py-2 rounded font-semibold ${
+                        questionVisible 
+                          ? 'bg-red-600 hover:bg-red-700' 
+                          : 'bg-green-600 hover:bg-green-700'
+                      }`}
+                    >
+                      {questionVisible ? '👁️ Hide Question on Display' : '👁️ Show Question on Display'}
+                    </button>
+                  </div>
+                  {questionVisible && (
+                    <p className="text-sm text-green-400">✓ Question is visible on display</p>
+                  )}
+                  {!questionVisible && (
+                    <p className="text-sm text-yellow-400">⚠️ Question is hidden from display</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">

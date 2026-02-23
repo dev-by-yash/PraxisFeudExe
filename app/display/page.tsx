@@ -9,7 +9,7 @@ function DisplayPageContent() {
   const searchParams = useSearchParams();
   const gameCode = searchParams?.get('code');
 
-  const [game, setGame] = useState<Game | 0>(0);
+  const [game, setGame] = useState<Game | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [showStrikeAnimation, setShowStrikeAnimation] = useState(false);
   const [currentStrikeCount, setCurrentStrikeCount] = useState(0);
@@ -104,7 +104,7 @@ function DisplayPageContent() {
           setGame(prevGame => {
             if (!prevGame) {
               console.log('📺 ERROR: prevGame is null/undefined');
-              return null;
+              return prevGame;
             }
             const updated = {
               ...prevGame,
@@ -236,13 +236,13 @@ function DisplayPageContent() {
   return (
     <div className="min-h-screen text-white relative overflow-hidden">
       {/* Background Image */}
-      <div 
+      <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: 'url(/Hype_Date.png)' }}
       />
       {/* Dark overlay for better text readability */}
       <div className="fixed inset-0 z-0 bg-black/40" />
-      
+
       {/* Strike Animation Overlay */}
       {showStrikeAnimation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -305,7 +305,7 @@ function DisplayPageContent() {
         {/* No Questions Selected Message */}
         {!hasQuestions && (
           <div className="flex items-center justify-center min-h-screen">
-            <div 
+            <div
               className="p-12 rounded-3xl text-center max-w-2xl"
               style={{
                 background: '#1B59F5',
@@ -329,7 +329,7 @@ function DisplayPageContent() {
             {/* Question Box - Full Width - Only show if questionVisible is true */}
             {game.questionVisible === true ? (
               <div className="w-full max-w-5xl mb-8">
-                <div 
+                <div
                   className="p-8 rounded-3xl text-center text-4xl font-bold"
                   style={{
                     background: '#1B59F5',
@@ -343,7 +343,7 @@ function DisplayPageContent() {
               </div>
             ) : (
               <div className="w-full max-w-5xl mb-8">
-                <div 
+                <div
                   className="p-8 rounded-3xl text-center text-3xl font-bold"
                   style={{
                     background: '#1B59F5',
@@ -361,7 +361,7 @@ function DisplayPageContent() {
             {/* Main Content Grid */}
             <div className="w-full max-w-6xl grid grid-cols-[auto_1fr_auto] gap-8 items-start mt-8">
               {/* Left Team Score */}
-              <div 
+              <div
                 className="px-10 py-8 rounded-3xl text-7xl font-bold"
                 style={{
                   background: '#1B59F5',
@@ -380,12 +380,12 @@ function DisplayPageContent() {
                     key={index}
                     className="relative p-6 rounded-3xl flex items-center justify-center text-3xl font-bold transition-all duration-300"
                     style={{
-                      background: answer.revealed 
-                        ? '#F51BAD' 
+                      background: answer.revealed
+                        ? '#F51BAD'
                         : 'radial-gradient(circle at center, #7841FF 0%, #1B59F5 100%)',
                       border: answer.revealed ? '3px solid #F51BAD' : '3px solid #F51BAD',
-                      boxShadow: answer.revealed 
-                        ? '0 0 30px rgba(245, 27, 173, 0.6)' 
+                      boxShadow: answer.revealed
+                        ? '0 0 30px rgba(245, 27, 173, 0.6)'
                         : '0 0 20px rgba(120, 65, 255, 0.4)',
                       minHeight: '80px',
                       fontFamily: "'Roslindale', 'Arial Black', sans-serif"
@@ -394,7 +394,7 @@ function DisplayPageContent() {
                     {answer.revealed ? (
                       <span className="text-white">{answer.text}</span>
                     ) : (
-                      <div 
+                      <div
                         className="w-16 h-16 rounded-full flex items-center justify-center text-4xl font-bold"
                         style={{
                           background: 'radial-gradient(circle at center, #7841FF 0%, #1B59F5 100%)',
@@ -410,7 +410,7 @@ function DisplayPageContent() {
               </div>
 
               {/* Right Team Score */}
-              <div 
+              <div
                 className="px-10 py-8 rounded-3xl text-7xl font-bold"
                 style={{
                   background: '#1B59F5',
@@ -427,7 +427,7 @@ function DisplayPageContent() {
 
         {/* Game State Messages */}
         {game.gameState === 'buzzer' && !game.buzzerPressed && (
-          <div 
+          <div
             className="w-full max-w-3xl p-8 rounded-3xl text-center text-4xl font-bold animate-pulse"
             style={{
               background: '#1B59F5',
@@ -441,7 +441,7 @@ function DisplayPageContent() {
         )}
 
         {game.gameState === 'finished' && (
-          <div 
+          <div
             className="w-full max-w-4xl p-12 rounded-3xl text-center"
             style={{
               background: '#1B59F5',

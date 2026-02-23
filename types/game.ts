@@ -54,7 +54,7 @@ export interface Game {
 }
 
 export interface WSMessage {
-  type: 'host_create' | 'player_join' | 'display_join' | 'leaderboard_join' | 'buzzer_press' | 'host_action' | 'game_update' | 'error' | 'game_created' | 'joined_game' | 'player_joined' | 'buzzer_pressed' | 'buzzer_enabled' | 'buzzer_reset' | 'buzzer_too_late' | 'team_manager_join' | 'team_management_action' | 'team_updated' | 'answer_revealed' | 'question_changed' | 'points_updated' | 'teams_loaded' | 'teams_selected' | 'player_joined_team' | 'load_all_teams' | 'question_visibility_changed' | 'game_ended' | 'used_questions_reset';
+  type: 'host_create' | 'player_join' | 'display_join' | 'leaderboard_join' | 'buzzer_press' | 'host_action' | 'game_update' | 'error' | 'game_created' | 'joined_game' | 'player_joined' | 'buzzer_pressed' | 'buzzer_enabled' | 'buzzer_reset' | 'buzzer_too_late' | 'team_manager_join' | 'team_management_action' | 'team_updated' | 'answer_revealed' | 'question_changed' | 'points_updated' | 'teams_loaded' | 'teams_selected' | 'player_joined_team' | 'load_all_teams' | 'question_visibility_changed' | 'game_ended' | 'used_questions_reset' | 'questions_loaded' | 'load_all_questions' | 'select_questions' | 'reset_used_questions';
   data: any;
   gameCode?: string;
   playerId?: string;

@@ -31,6 +31,7 @@ export default function HostPage() {
   const [currentRoundSelection, setCurrentRoundSelection] = useState<1 | 2 | 3>(1);
   const [questionsSelected, setQuestionsSelected] = useState(false);
   const [questionVisible, setQuestionVisible] = useState(false); // Track if question is shown on display
+  const [availableQuestionsCount, setAvailableQuestionsCount] = useState(0); // Track available questions
 
   useEffect(() => {
     // Disable auto-reset for now - message should stay until manually reset
@@ -239,7 +240,18 @@ export default function HostPage() {
           console.log('📨 QUESTIONS_LOADED message received');
           console.log('   Number of questions:', message.data.questions?.length || 0);
           setAllQuestions(message.data.questions || []);
+          setAvailableQuestionsCount(message.data.questions?.length || 0);
           console.log('✅ Questions loaded');
+          break;
+        case 'used_questions_reset':
+          console.log('📨 USED_QUESTIONS_RESET message received');
+          alert(message.data.message);
+          // Reload questions after reset
+          requestAllQuestions();
+          break;
+        case 'game_ended':
+          console.log('📨 GAME_ENDED message received');
+          alert(`Game Ended!\n\n${message.data.questionsMarked} questions have been marked as used and won't appear in future games.`);
           break;
         case 'buzzer_pressed':
           console.log('📨 HOST received buzzer_pressed:', message.data);
@@ -316,6 +328,17 @@ export default function HostPage() {
       wsRef.current.send(JSON.stringify({
         type: 'load_all_questions'
       }));
+    }
+  };
+
+  const resetUsedQuestions = () => {
+    if (confirm('Are you sure you want to reset all used questions? This will make all questions available again for selection.')) {
+      if (wsRef.current) {
+        console.log('📤 Resetting used questions');
+        wsRef.current.send(JSON.stringify({
+          type: 'reset_used_questions'
+        }));
+      }
     }
   };
 
@@ -545,6 +568,14 @@ export default function HostPage() {
     });
   };
 
+  const endGame = () => {
+    if (confirm('Are you sure you want to end the game? This will mark all selected questions as used and they won\'t appear in future games.')) {
+      sendHostAction({
+        type: 'end_game'
+      });
+    }
+  };
+
   const revealAnswer = (answerIndex: number) => {
     sendHostAction({
       type: 'reveal_answer',
@@ -650,7 +681,26 @@ export default function HostPage() {
             {showQuestionSelection && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
                 <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
-                  <h3 className="text-2xl font-bold mb-4">Select Questions for Each Round</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-2xl font-bold">Select Questions for Each Round</h3>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-300">Available: {availableQuestionsCount} questions</p>
+                      <button
+                        onClick={resetUsedQuestions}
+                        className="text-xs text-yellow-400 hover:text-yellow-300 underline mt-1"
+                      >
+                        Reset Used Questions
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Warning if not enough questions */}
+                  {availableQuestionsCount < 9 && (
+                    <div className="bg-red-900 border border-red-600 rounded-lg p-4 mb-4">
+                      <p className="text-red-200 font-semibold">⚠️ Warning: Only {availableQuestionsCount} questions available!</p>
+                      <p className="text-red-300 text-sm mt-1">You need 9 questions (3 per round). Click "Reset Used Questions" to make all questions available again.</p>
+                    </div>
+                  )}
                   
                   {/* Round Tabs */}
                   <div className="flex space-x-2 mb-4">
@@ -1023,6 +1073,14 @@ export default function HostPage() {
                 >
                   Next Question
                 </button>
+                {game.gameState !== 'waiting' && (
+                  <button
+                    onClick={endGame}
+                    className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-semibold"
+                  >
+                    🏁 End Game
+                  </button>
+                )}
               </div>
             </div>
 

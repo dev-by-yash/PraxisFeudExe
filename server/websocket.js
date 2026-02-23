@@ -44,6 +44,18 @@ PlayerSchema.index({ id: 1 });
 
 const Player = mongoose.model('Player', PlayerSchema);
 
+// UsedQuestion Schema - Track questions that have been used in games
+const UsedQuestionSchema = new mongoose.Schema({
+  questionId: { type: String, required: true, unique: true },
+  questionText: { type: String, required: true },
+  usedAt: { type: Date, default: Date.now },
+  gameCode: { type: String, required: true }
+});
+
+UsedQuestionSchema.index({ questionId: 1 });
+
+const UsedQuestion = mongoose.model('UsedQuestion', UsedQuestionSchema);
+
 // Game Schema
 const AnswerSchema = new mongoose.Schema({
   text: { type: String, required: true },
@@ -179,9 +191,20 @@ async function createGame(hostId) {
   return gameData;
 }
 
-// Function to get all available questions for selection
-function getAllQuestions() {
-  return sampleQuestions;
+// Function to get all available questions for selection (excluding used ones)
+async function getAllQuestions() {
+  // Get all used question IDs
+  const usedQuestions = await UsedQuestion.find({});
+  const usedQuestionIds = new Set(usedQuestions.map(q => q.questionId));
+  
+  // Filter out used questions
+  const availableQuestions = sampleQuestions.filter(q => !usedQuestionIds.has(q.id));
+  
+  console.log(`📊 Total questions: ${sampleQuestions.length}`);
+  console.log(`📊 Used questions: ${usedQuestionIds.size}`);
+  console.log(`📊 Available questions: ${availableQuestions.length}`);
+  
+  return availableQuestions;
 }
 
 wss.on('connection', (ws) => {
@@ -833,19 +856,43 @@ wss.on('connection', (ws) => {
         case 'load_all_questions':
           try {
             console.log('📥 Received load_all_questions request');
-            const allQuestions = getAllQuestions();
+            const allQuestions = await getAllQuestions();
             
             ws.send(JSON.stringify({
               type: 'questions_loaded',
               data: { questions: allQuestions }
             }));
 
-            console.log(`✅ Loaded ${allQuestions.length} questions for selection`);
+            console.log(`✅ Loaded ${allQuestions.length} available questions for selection`);
           } catch (error) {
             console.error('❌ Load questions error:', error);
             ws.send(JSON.stringify({
               type: 'error',
               data: { message: 'Failed to load questions: ' + error.message }
+            }));
+          }
+          break;
+
+        case 'reset_used_questions':
+          try {
+            console.log('📥 Received reset_used_questions request');
+            
+            // Delete all used questions from the database
+            const result = await UsedQuestion.deleteMany({});
+            console.log(`✅ Cleared ${result.deletedCount} used questions`);
+            
+            ws.send(JSON.stringify({
+              type: 'used_questions_reset',
+              data: { 
+                message: `Cleared ${result.deletedCount} used questions. All questions are now available.`,
+                deletedCount: result.deletedCount
+              }
+            }));
+          } catch (error) {
+            console.error('❌ Reset used questions error:', error);
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Failed to reset used questions: ' + error.message }
             }));
           }
           break;
@@ -865,7 +912,7 @@ wss.on('connection', (ws) => {
 
             const { round1Questions, round2Questions, round3Questions } = message.data;
 
-            // Update game rounds with selected questions
+            // Update game rounds with selected questions (don't mark as used yet)
             game.rounds[0].questions = round1Questions;
             game.rounds[1].questions = round2Questions;
             game.rounds[2].questions = round3Questions;
@@ -879,7 +926,7 @@ wss.on('connection', (ws) => {
               data: { game: game.toObject() }
             });
 
-            console.log(`✅ Questions selected for game ${message.gameCode}`);
+            console.log(`✅ Questions selected for game ${message.gameCode} (will be marked as used when game ends)`);
           } catch (error) {
             console.error('❌ Select questions error:', error);
             ws.send(JSON.stringify({
@@ -1328,6 +1375,62 @@ wss.on('connection', (ws) => {
                 console.log(`Host action completed: ${action.type}`);
                 return;
 
+              case 'end_game':
+                console.log('🏁 Ending game and marking questions as used');
+                
+                // Collect all questions from all rounds
+                const allGameQuestions = [];
+                game.rounds.forEach(round => {
+                  if (round.questions && round.questions.length > 0) {
+                    allGameQuestions.push(...round.questions);
+                  }
+                });
+
+                console.log(`📝 Found ${allGameQuestions.length} questions to mark as used`);
+
+                // Mark all questions as used in the database
+                for (const question of allGameQuestions) {
+                  try {
+                    // Check if already marked as used
+                    const existingUsed = await UsedQuestion.findOne({ questionId: question.id });
+                    
+                    if (!existingUsed) {
+                      const usedQuestion = new UsedQuestion({
+                        questionId: question.id,
+                        questionText: question.text,
+                        gameCode: message.gameCode,
+                        usedAt: new Date()
+                      });
+                      await usedQuestion.save();
+                      console.log(`✅ Marked question as used: ${question.id} - "${question.text}"`);
+                    } else {
+                      console.log(`⚠️ Question already marked as used: ${question.id}`);
+                    }
+                  } catch (err) {
+                    console.error(`❌ Error marking question as used: ${question.id}`, err);
+                  }
+                }
+
+                // Set game state to finished
+                game.gameState = 'finished';
+                await game.save();
+
+                // Broadcast game ended
+                broadcast(message.gameCode, {
+                  type: 'game_ended',
+                  data: {
+                    message: 'Game has ended. Questions have been marked as used.',
+                    questionsMarked: allGameQuestions.length
+                  }
+                });
+
+                broadcast(message.gameCode, {
+                  type: 'game_update',
+                  data: { game: game.toObject() }
+                });
+
+                console.log(`✅ Game ended. ${allGameQuestions.length} questions marked as used.`);
+                return;
 
               case 'manage_teams':
                 if (action.data.operation === 'add_player') {

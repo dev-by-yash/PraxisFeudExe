@@ -62,3 +62,19 @@ body {
 .animate-strike-bounce {
   animation: strike-bounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 }
+
+/* Slide In Right Animation for Answer Reveal */
+@keyframes slideInRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.8s ease-out forwards;
+}

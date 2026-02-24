@@ -25,6 +25,15 @@ function PlayerPageContent() {
   const wsRef = useRef<WebSocket | null>(null);
   const myTeamIdRef = useRef<string | null>(null);
   const hasConnectedRef = useRef(false);
+  const buzzerSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize buzzer sound
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !buzzerSoundRef.current) {
+      buzzerSoundRef.current = new Audio('/buzzer.mp3');
+      buzzerSoundRef.current.volume = 0.8;
+    }
+  }, []);
 
   useEffect(() => {
     if (!gameCode || !teamName) return;
@@ -186,6 +195,15 @@ function PlayerPageContent() {
     
     if (canBuzz && wsRef.current && gameCode && currentTeamId) {
       console.log('✅ Sending buzzer press to server');
+      
+      // Play buzzer sound
+      if (buzzerSoundRef.current) {
+        buzzerSoundRef.current.currentTime = 0;
+        buzzerSoundRef.current.play().catch(err => {
+          console.log('Buzzer sound error:', err.message);
+        });
+      }
+      
       wsRef.current.send(JSON.stringify({
         type: 'buzzer_press',
         gameCode,

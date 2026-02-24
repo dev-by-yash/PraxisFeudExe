@@ -1,0 +1,29 @@
+services:
+  websocket-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: feud-websocket-server
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - PORT=${PORT:-8080}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    labels:
+      caddy: ${DOMAIN}
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+      caddy.tls: "tls1.3"
+      caddy.tls.dns: "cloudflare ${TOKEN}"
+
+networks:
+  default:
+    name: all
+    external: true
